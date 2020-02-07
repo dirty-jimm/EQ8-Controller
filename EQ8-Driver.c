@@ -16,7 +16,6 @@
 * No logical-error checking functionality is provided here (for instance,
 * attempting to set the GOTO location while the mount is moving). Rather,
 * every function will return either data or an error flag. 
-*
 *-------------------------------------------------------------*/
 #define VERSION 1.2
 
@@ -38,6 +37,11 @@ bool verbose = 1; //Enables verbose terminal output for debugging
  * */
 int setup_Port()
 {
+       printf("\n\n\n--- EQ8 Pro Mount Driver ---\n");
+    if (verbose)
+        printf("Verbose Mode: on\n");
+    if (verbose)
+        printf("Version: %.2f\n", VERSION);
 
     int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
                                                        //  fd = open("/dev/ttyUSB0",O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
@@ -71,7 +75,7 @@ int setup_Port()
     SerialPortSettings.c_cflag &= ~CRTSCTS;       /* No Hardware flow Control                         */
     SerialPortSettings.c_cflag |= CREAD | CLOCAL; /* Enable receiver,Ignore Modem Control lines       */
 
-    SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);         /* Disable XON/XOFF flow control both i/p and o/p */
+    SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);        /* Disable XON/XOFF flow control both i/p and o/p */
     SerialPortSettings.c_iflag &= (ICANON | ECHO | ECHOE | ISIG); /* Non Cannonical mode                            */
 
     SerialPortSettings.c_oflag &= ~OPOST; /*No Output Processing*/
@@ -84,6 +88,9 @@ int setup_Port()
         printf("ERROR ! in Setting attributes\n");
     else if (verbose)
         printf("BaudRate = 9600 \nStopBits = 1 \nParity   = none\n");
+
+    printf("Setup Complete\n");
+    printf("----------------------------\n");
     return fd;
 }
 
@@ -131,29 +138,3 @@ int read_Response(int port)
     return bytes_read;
 }
 
-int main(void)
-{
-    printf("\n\n\n--- EQ8 Pro Mount Driver ---\n");
-    if (verbose)
-        printf("Verbose Mode: on\n");
-    if (verbose)
-        printf("Version: %.2f\n", VERSION);
-    int fd = setup_Port();
-    printf("\nSetup Complete\n\n");
-    char input[32];
-    
-    //Test loop to allow keyboard commands, to be removed
-    while (1)
-    {
-        printf("Command:");
-        scanf("%s", input);
-        send_Command(fd, input);
-        usleep(30000); // this gives the mount time to repsond
-        // else all responsed will be offset by 1 from their respective commands
-        read_Response(fd);
-    }
-
-    printf("\n +----------------------------------+\n\n\n");
-
-    close(fd); /* Close the serial port */
-}
