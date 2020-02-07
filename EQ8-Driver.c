@@ -29,7 +29,7 @@
 #include <errno.h>                        /* ERROR Number Definitions           */
 #define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through
 
-bool verbose = 1; //Enables verbose terminal output for debugging
+bool verbose = 0; //Enables verbose terminal output for debugging
 
 /* *
  * Function to initialise port settings and open connection.
@@ -37,7 +37,7 @@ bool verbose = 1; //Enables verbose terminal output for debugging
  * */
 int setup_Port()
 {
-       printf("\n\n\n--- EQ8 Pro Mount Driver ---\n");
+    printf("\n--- EQ8 Pro Mount Driver ---\n");
     if (verbose)
         printf("Verbose Mode: on\n");
     if (verbose)
@@ -115,26 +115,38 @@ int send_Command(int port, char command[])
     return X;
 }
 
+/* *
+ * Function to read a single response from the mount.
+ * Returns: -1 on read error or no response.
+ *          0 on success (fill buffer with data?)
+ *          1,2 or 3 for error !1, !2 or !3 reported by mount.
+ * */
 int read_Response(int port)
 {
+
     char read_buffer[8];
     int bytes_read = 0;
-    do
-    {
-        bytes_read = read(port, &read_buffer, 8); /* Read the data                   */
-    } while (bytes_read == 0);
+
+    bytes_read = read(port, &read_buffer, 8); /* Read the data                   */
+
+    tcflush(port, TCIFLUSH); /* Discards old data in the rx buffer            */
+
     if (verbose)
-    {
         printf("DEBUG: %i Bytes recieved\n", bytes_read); /* Print the number of bytes read */
 
-        if (bytes_read > 0)
-        {
-            for (int i = 0; i < bytes_read - 1; i++) /*printing only the needed bytes*/
-                printf("%c", read_buffer[i]);
-            printf("\n");
-        }
-    }
-    tcflush(port, TCIFLUSH); /* Discards old data in the rx buffer            */
-    return bytes_read;
-}
+    for (int i = 0; i < bytes_read - 1; i++) /*printing only the needed bytes*/
+        printf("%c", read_buffer[i]);
+    printf("\n");
 
+    if (read_buffer[0] == '=')
+    {
+        return 0;
+    }
+    else if (read_buffer[0] == '!')
+    {
+        int error_number = atoi(&read_buffer[1]) + 1; //offset by 1 as "!0" is a possible error number
+        return error_number;
+    }
+
+    return -1;
+}
