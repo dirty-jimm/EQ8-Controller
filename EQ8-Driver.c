@@ -2,8 +2,8 @@
 * EQ8 - Driver
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
-* Created on: 05/02/2020
-* Last modifiied on: 07/02/2020
+* Created on: 11/02/2020
+* Last modifiied on: 11/02/2020
 *
 *
 * This program allows for low level communication with the motor 
@@ -14,10 +14,11 @@
 * by ASCOM found at: https://ascom-standards.org/Developer/Principles.htm
 *
 * No logical-error checking functionality is provided here (for instance,
-* attempting to set the GOTO location while the mount is moving). Rather,
-* every function will return either data or an error flag. 
+* attempting to set the GOTO location while the mount is moving).
+* Each function will return a negative value on failure, positive on success
+* (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION 1.2
+#define VERSION 1.3
 
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +30,13 @@
 #include <errno.h>                        /* ERROR Number Definitions           */
 #define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through
 
-bool verbose = 0; //Enables verbose terminal output for debugging
+bool verbose = 1; //Enables verbose terminal output for debugging
+
+struct response
+{
+    int flag;      // Response flag, negative = error
+    char data[10]; // data
+};
 
 /* *
  * Function to initialise port settings and open connection.
@@ -49,37 +56,27 @@ int setup_Port()
                                                        /* O_NOCTTY - No terminal will control the process   */
                                                        /* Open in blocking mode,read will wait              */
 
-    if (fd == -1) /* Error Checking */
+    if (fd == -1)
     {
         printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
     }
     else if (verbose)
         printf("Connected to Mount, port: %s\n", PORT);
 
-    /*---------- Setting the Attributes of the serial port using termios structure --------- */
-
-    struct termios SerialPortSettings; /* Create the structure                          */
-
-    tcgetattr(fd, &SerialPortSettings); /* Get the current attributes of the Serial port */
-
-    /* Setting the Baud rate */
+    struct termios SerialPortSettings;       /* Create the structure                          */
+    tcgetattr(fd, &SerialPortSettings);      /* Get the current attributes of the Serial port */
     cfsetispeed(&SerialPortSettings, B9600); /* Set Read  Speed as 9600                       */
     cfsetospeed(&SerialPortSettings, B9600); /* Set Write Speed as 9600                      */
-
     /* 8N1 Mode */
-    SerialPortSettings.c_cflag &= ~PARENB; /* Disables the Parity Enable bit(PARENB),So No Parity   */
-    SerialPortSettings.c_cflag &= ~CSTOPB; /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
-    SerialPortSettings.c_cflag &= ~CSIZE;  /* Clears the mask for setting the data size             */
-    SerialPortSettings.c_cflag |= CS8;     /* Set the data bits = 8                                 */
-
-    SerialPortSettings.c_cflag &= ~CRTSCTS;       /* No Hardware flow Control                         */
-    SerialPortSettings.c_cflag |= CREAD | CLOCAL; /* Enable receiver,Ignore Modem Control lines       */
-
+    SerialPortSettings.c_cflag &= ~PARENB;                        /* Disables the Parity Enable bit(PARENB),So No Parity   */
+    SerialPortSettings.c_cflag &= ~CSTOPB;                        /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
+    SerialPortSettings.c_cflag &= ~CSIZE;                         /* Clears the mask for setting the data size             */
+    SerialPortSettings.c_cflag |= CS8;                            /* Set the data bits = 8                                 */
+    SerialPortSettings.c_cflag &= ~CRTSCTS;                       /* No Hardware flow Control                         */
+    SerialPortSettings.c_cflag |= CREAD | CLOCAL;                 /* Enable receiver,Ignore Modem Control lines       */
     SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);        /* Disable XON/XOFF flow control both i/p and o/p */
     SerialPortSettings.c_iflag &= (ICANON | ECHO | ECHOE | ISIG); /* Non Cannonical mode                            */
-
-    SerialPortSettings.c_oflag &= ~OPOST; /*No Output Processing*/
-
+    SerialPortSettings.c_oflag &= ~OPOST;                         /*No Output Processing*/
     /* Setting Time outs */
     SerialPortSettings.c_cc[VMIN] = 13; /* Read at least 10 characters */
     SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
@@ -108,7 +105,7 @@ int send_Command(int port, char command[])
     strcat(writebuffer, "\r");
 
     if (verbose)
-        printf("\nWriting: %s\n", writebuffer);
+        printf("Writing: %s\n", writebuffer);
     int X = write(port, writebuffer, strlen(writebuffer));
     if (verbose)
         printf("DEBUG: %i bytes written\n", X);
@@ -117,36 +114,31 @@ int send_Command(int port, char command[])
 
 /* *
  * Function to read a single response from the mount.
- * Returns: -1 on read error or no response.
- *          0 on success (fill buffer with data?)
- *          1,2 or 3 for error !1, !2 or !3 reported by mount.
+ * Populates a structure and returns a pointer to it.
+ * Structure is cleared on and only on calling of this
+ * function.
  * */
-int read_Response(int port)
+struct response *read_Response(int port)
 {
-
-    char read_buffer[8];
+    char read_buffer[9];
     int bytes_read = 0;
+    static struct response this_response = {-1};
+    strcpy(this_response.data, "\0"); // flush previous read
 
-    bytes_read = read(port, &read_buffer, 8); /* Read the data                   */
+    bytes_read = read(port, &read_buffer, 8); /* Read the data */
+    tcflush(port, TCIFLUSH);                  /* Flush RX buffer */
 
-    tcflush(port, TCIFLUSH); /* Discards old data in the rx buffer            */
-
+    if (read_buffer[0] == '=' || read_buffer[0] == '!')
+    { //valid response from mount
+        this_response.flag = 1;
+    }
+    strcpy(this_response.data, read_buffer);
     if (verbose)
-        printf("DEBUG: %i Bytes recieved\n", bytes_read); /* Print the number of bytes read */
-
-    for (int i = 0; i < bytes_read - 1; i++) /*printing only the needed bytes*/
-        printf("%c", read_buffer[i]);
-    printf("\n");
-
-    if (read_buffer[0] == '=')
     {
-        return 0;
+        printf("DEBUG: %i Bytes recieved, ", bytes_read);
+        printf("%s\n", read_buffer);
+        printf("DEBUG: Written to struct: Flag: %i\n", this_response.flag);
+        printf("DEBUG: Written to struct: Data: %s\n", this_response.data);
     }
-    else if (read_buffer[0] == '!')
-    {
-        int error_number = atoi(&read_buffer[1]) + 1; //offset by 1 as "!0" is a possible error number
-        return error_number;
-    }
-
-    return -1;
+    return &this_response;
 }
