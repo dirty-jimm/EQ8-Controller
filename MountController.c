@@ -12,7 +12,7 @@
 *   - 
 *-------------------------------------------------------------*/
 
-#define VERSION_CONTROLLER 1.1
+#define VERSION_CONTROLLER 1.2
 #include "EQ8-Driver.c"
 
 int parse_Response(struct response *response)
@@ -20,6 +20,7 @@ int parse_Response(struct response *response)
     int flag = (*response).flag;
     char data[9];
     strcpy(data,(*response).data);
+    printf("Response:\t%s\n", data);
     if (flag == -1)
     {
         printf("DEBUG: Read Error");
@@ -62,7 +63,7 @@ int main(void)
     //Test loop to allow keyboard commands, to be removed
     while (1)
     {
-        printf("\nCommand:");
+        printf("\nCommand:\t");
         scanf("%s", input);
         send_Command(fd, input);
         usleep(30000); // this gives the mount time to repsond
@@ -70,6 +71,5 @@ int main(void)
         // Should be able to replace this by changing serial to canonical mode
         parse_Response(read_Response(fd));
     }
-
     close(fd); /* Close the serial port */
 }
