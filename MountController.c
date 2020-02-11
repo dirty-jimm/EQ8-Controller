@@ -2,8 +2,8 @@
 * Mount Controller
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
-* Created on: 07/02/2020
-* Last modifiied on: 07/02/2020
+* Created on: 11/02/2020
+* Last modifiied on: 11/02/2020
 *
 * This program contains high level mount controlling functionality:
 *   - Parsing of text commands.
@@ -12,51 +12,40 @@
 *   - 
 *-------------------------------------------------------------*/
 
-#define VERSION_CONTROLLER 1.0
+#define VERSION_CONTROLLER 1.1
 #include "EQ8-Driver.c"
 
-int parse_Response(int response)
+int parse_Response(struct response *response)
 {
-    if (response == 0)
+    int flag = (*response).flag;
+    char data[9];
+    strcpy(data,(*response).data);
+    if (flag == -1)
     {
-        printf("Acknowledged\n");
-    }
-    else if (response == 1)
-    {
-        printf("Error:Unknown Command\n");
-    }
-
-    else if (response == 2)
-    {
-        printf("Error:Command Length\n");
+        printf("DEBUG: Read Error");
     }
 
-    else if (response == 3)
+    else if (flag == 1)
     {
-        printf("Error: Motor Not Stopped\n");
-    }
+        if (data[0] == '!')
+        {
+            printf("Mount Error: ");
 
-    else if (response == 4)
-    {
-        printf("Error: Invalid Characer\n");
+            if (data[1] == '0')
+                printf("Unknown Command\n");
+            if (data[1] == '1')
+                printf("Command Length\n");
+            if (data[1] == '2')
+                printf("Motor Not Stopped\n");
+            if (data[1] == '3')
+                printf("Invalid Characer\n");
+            if (data[1] == '4')
+                printf("Not Initialised\n");
+            if (data[1] == '5')
+                printf("Driver Sleeping\n");
+        }
     }
-
-    else if (response == 5)
-    {
-        printf("Error: Not Initialised\n");
-    }
-
-    else if (response == 6)
-    {
-        printf("Error: Driver Sleeping\n");
-    }
-
-    else if (response == -1)
-    {
-        printf("Read Error or no response\n");
-    }
-
-    return response;
+    return flag;
 }
 
 int main(void)
@@ -73,7 +62,7 @@ int main(void)
     //Test loop to allow keyboard commands, to be removed
     while (1)
     {
-        printf("Command:");
+        printf("\nCommand:");
         scanf("%s", input);
         send_Command(fd, input);
         usleep(30000); // this gives the mount time to repsond
