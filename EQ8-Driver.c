@@ -1,144 +1,83 @@
 /*--------------------------------------------------------------
-* EQ8 - Driver
+* Mount Controller
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 11/02/2020
+* Last modifiied on: 13/02/2020
 *
-*
-* This program allows for low level communication with the motor 
-* controllers through a USB - RJ45 Serial connection.
-* Though designated as a driver, this program is not one by strict definition,
-* but rather it exists to provide the same functionality as a driver would.
-* It largely complies (with a few execptions with the general principles dictated 
-* by ASCOM found at: https://ascom-standards.org/Developer/Principles.htm
-*
-* No logical-error checking functionality is provided here (for instance,
-* attempting to set the GOTO location while the mount is moving).
-* Each function will return a negative value on failure, positive on success
-* (for recieve, this is done so as the .flag value in the returned structure)
+* This program contains high level mount controlling functionality:
+*   - Parsing of text commands.
+    - Parsing of error codes
+*   - Command retries and logical error handling.
+*   - 
 *-------------------------------------------------------------*/
-#define VERSION 1.3
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <fcntl.h>                        /* File Control Definitions           */
-#include <termios.h>                      /* POSIX Terminal Control Definitions */
-#include <unistd.h>                       /* UNIX Standard Definitions      */
-#include <errno.h>                        /* ERROR Number Definitions           */
-#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through
-
-bool verbose = 1; //Enables verbose terminal output for debugging
-
-struct response
+#define VERSION_CONTROLLER 1.4
+#include "EQ8-Comms.c"
+void convert(char data[9])
 {
-    int flag;      // Response flag, negative = error
-    char data[10]; // data
-};
+    printf("%c%c%c%c%c%c\n", data[5], data[6], data[3], data[4], data[1], data[2]);
+}
 
-/* *
- * Function to initialise port settings and open connection.
- * Returns port ID on success, -1 on failure.
- * */
-int setup_Port()
+int parse_Response(struct response *response)
 {
-    printf("\n--- EQ8 Pro Mount Driver ---\n");
+    int flag = (*response).flag;
+    char data[9];
+    strcpy(data, (*response).data);
+    printf("Response:\t%s\n", data);
+    if (flag == -1)
+    {
+        printf("DEBUG: Read Error");
+    }
+
+    else if (flag == 1)
+    {
+        if (data[0] == '!')
+        {
+            printf("Mount Error: ");
+
+            if (data[1] == '0')
+                printf("Unknown Command\n");
+            if (data[1] == '1')
+                printf("Command Length\n");
+            if (data[1] == '2')
+                printf("Motor Not Stopped\n");
+            if (data[1] == '3')
+                printf("Invalid Characer\n");
+            if (data[1] == '4')
+                printf("Not Initialised\n");
+            if (data[1] == '5')
+                printf("Driver Sleeping\n");
+        }
+        convert(data);
+    }
+    return flag;
+}
+
+int send_Command(int port, char command[])
+{
+    TX(port, command);
+    usleep(30000); // this gives the mount time to repsond
+                   // else all responsed will be offset by 1 from their respective commands
+                   // Should be able to replace this by changing serial to canonical mode
+    return parse_Response(RX(port));
+}
+
+
+
+int setup_Controller(void)
+{
+    int fd = setup_Port();
+    printf("\n--- EQ8 Pro Mount Controller ---\n");
     if (verbose)
         printf("Verbose Mode: on\n");
     if (verbose)
-        printf("Version: %.2f\n", VERSION);
-
-    int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
-                                                       //  fd = open("/dev/ttyUSB0",O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
-                                                       /* O_RDWR   - Read/Write access to serial port       */
-                                                       /* O_NOCTTY - No terminal will control the process   */
-                                                       /* Open in blocking mode,read will wait              */
-
-    if (fd == -1)
-    {
-        printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
-    }
-    else if (verbose)
-        printf("Connected to Mount, port: %s\n", PORT);
-
-    struct termios SerialPortSettings;       /* Create the structure                          */
-    tcgetattr(fd, &SerialPortSettings);      /* Get the current attributes of the Serial port */
-    cfsetispeed(&SerialPortSettings, B9600); /* Set Read  Speed as 9600                       */
-    cfsetospeed(&SerialPortSettings, B9600); /* Set Write Speed as 9600                      */
-    /* 8N1 Mode */
-    SerialPortSettings.c_cflag &= ~PARENB;                        /* Disables the Parity Enable bit(PARENB),So No Parity   */
-    SerialPortSettings.c_cflag &= ~CSTOPB;                        /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
-    SerialPortSettings.c_cflag &= ~CSIZE;                         /* Clears the mask for setting the data size             */
-    SerialPortSettings.c_cflag |= CS8;                            /* Set the data bits = 8                                 */
-    SerialPortSettings.c_cflag &= ~CRTSCTS;                       /* No Hardware flow Control                         */
-    SerialPortSettings.c_cflag |= CREAD | CLOCAL;                 /* Enable receiver,Ignore Modem Control lines       */
-    SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);        /* Disable XON/XOFF flow control both i/p and o/p */
-    SerialPortSettings.c_iflag &= (ICANON | ECHO | ECHOE | ISIG); /* Non Cannonical mode                            */
-    SerialPortSettings.c_oflag &= ~OPOST;                         /*No Output Processing*/
-    /* Setting Time outs */
-    SerialPortSettings.c_cc[VMIN] = 13; /* Read at least 10 characters */
-    SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
-
-    if ((tcsetattr(fd, TCSANOW, &SerialPortSettings)) != 0) /* Set the attributes to the termios structure*/
-        printf("ERROR ! in Setting attributes\n");
-    else if (verbose)
-        printf("BaudRate = 9600 \nStopBits = 1 \nParity   = none\n");
-
-    printf("Setup Complete\n");
+        printf("Version: %.2f\n", VERSION_CONTROLLER);
     printf("----------------------------\n");
     return fd;
 }
 
-/* *
- * Function to send a single command to the mount.
- * ":" prefix and "\r" suffix are padded automatically (improves reliability),
- * and should be ommitted from the "command" argument.
- * Returns number of bytes sent on success, -1 on failure.
- * */
-int send_Command(int port, char command[])
+int shutdown_Controller(int port)
 {
-    char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
-    strcat(writebuffer, ":");
-    strcat(writebuffer, command);
-    strcat(writebuffer, "\r");
-
-    if (verbose)
-        printf("Writing: %s\n", writebuffer);
-    int X = write(port, writebuffer, strlen(writebuffer));
-    if (verbose)
-        printf("DEBUG: %i bytes written\n", X);
-    return X;
-}
-
-/* *
- * Function to read a single response from the mount.
- * Populates a structure and returns a pointer to it.
- * Structure is cleared on and only on calling of this
- * function.
- * */
-struct response *read_Response(int port)
-{
-    char read_buffer[9];
-    int bytes_read = 0;
-    static struct response this_response = {-1};
-    strcpy(this_response.data, "\0"); // flush previous read
-
-    bytes_read = read(port, &read_buffer, 8); /* Read the data */
-    tcflush(port, TCIFLUSH);                  /* Flush RX buffer */
-
-    if (read_buffer[0] == '=' || read_buffer[0] == '!')
-    { //valid response from mount
-        this_response.flag = 1;
-    }
-    strcpy(this_response.data, read_buffer);
-    if (verbose)
-    {
-        printf("DEBUG: %i Bytes recieved, ", bytes_read);
-        printf("%s\n", read_buffer);
-        printf("DEBUG: Written to struct: Flag: %i\n", this_response.flag);
-        printf("DEBUG: Written to struct: Data: %s\n", this_response.data);
-    }
-    return &this_response;
+    return close(port); /* Close the serial port */
 }
