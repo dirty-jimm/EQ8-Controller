@@ -6,7 +6,7 @@
 * Last modifiied on: 13/02/2020
 *
 *
-* This program allows for low level communication with the motor 
+* This library allows for low level communication with the motor 
 * controllers through a USB - RJ45 Serial connection.
 * Though designated as a driver, this program is not one by strict definition,
 * but rather it exists to provide the same functionality as a driver would.
@@ -18,7 +18,7 @@
 * Each function will return a negative value on failure, positive on success
 * (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION 1.4
+#define VERSION_COMMS 1.4
 
 #include <stdio.h>
 #include <string.h>
@@ -32,7 +32,7 @@
 
 bool verbose = 0; //Enables verbose terminal output for debugging
 
-struct response   //Structure used to return both a success flag and data
+struct response //Structure used to return both a success flag and data
 {
     int flag;      // Response flag, negative = error
     char data[10]; // data
@@ -44,11 +44,12 @@ struct response   //Structure used to return both a success flag and data
  * */
 int setup_Port()
 {
-    printf("\n--- EQ8 Pro Mount Driver ---\n");
     if (verbose)
         printf("Verbose Mode: on\n");
+    printf("\nEQ8 Pro Mount Comms:\n");
+
     if (verbose)
-        printf("Version: %.2f\n", VERSION);
+        printf("Version: %.2f\n", VERSION_COMMS);
 
     int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
                                                        //  fd = open("/dev/ttyUSB0",O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
@@ -59,9 +60,9 @@ int setup_Port()
     if (fd == -1)
     {
         printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
-       exit(-1);
+        exit(-1);
     }
-    else if (verbose)
+    else
         printf("Connected to Mount, port: %s\n", PORT);
 
     struct termios SerialPortSettings;       /* Create the structure                          */
@@ -87,13 +88,12 @@ int setup_Port()
     else if (verbose)
         printf("BaudRate = 9600 \nStopBits = 1 \nParity   = none\n");
 
-    printf("Setup Complete\n");
-    printf("----------------------------\n");
+    printf("Comms Setup Complete\n\n");
     return fd;
 }
 
 /* *
- * Function to send a single command to the mount.
+ * Function to transmit a single command to the mount.
  * ":" prefix and "\r" suffix are padded automatically (improves reliability),
  * and should be ommitted from the "command" argument.
  * Returns number of bytes sent on success, -1 on failure.
@@ -109,7 +109,7 @@ int TX(int port, char command[])
         printf("Writing: %s\n", writebuffer);
     int X = write(port, writebuffer, strlen(writebuffer));
     if (verbose)
-        printf("DEBUG: %i bytes written\n", X);
+        printf("COMMS_DEBUG: %i bytes written\n", X);
     return X;
 }
 
@@ -136,10 +136,10 @@ struct response *RX(int port)
     strcpy(this_response.data, read_buffer);
     if (verbose)
     {
-        printf("DEBUG: %i Bytes recieved, ", bytes_read);
+        printf("COMMS_DEBUG: %i Bytes recieved, ", bytes_read);
         printf("%s\n", read_buffer);
-        printf("DEBUG: Written to struct: Flag: %i\n", this_response.flag);
-        printf("DEBUG: Written to struct: Data: %s\n", this_response.data);
+        printf("COMMS_DEBUG: Written to struct: Flag: %i\n", this_response.flag);
+        printf("COMMS_DEBUG: Written to struct: Data: %s\n", this_response.data);
     }
     return &this_response;
 }
