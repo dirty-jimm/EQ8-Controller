@@ -34,10 +34,10 @@ int kbhit()
 /* *
  * Positional data sent from the mount is formatted:    0xefcdab
  * This function reformats for readability to:          0xabcdef
- * Takes the data array and a pointer to the output buffer as arguments
+ * Takes the data array and an output buffer as arguments
  * If output buffer == 0, fuction prints conversion only
  * */
-void convert(char data_in[9], char *data_out)
+void convert(char data_in[9], char data_out[7])
 {
     char data_out_temp[7] = {data_in[5],
                              data_in[6],
@@ -130,8 +130,9 @@ struct response *send_Command(int port, char command[])
 {
     TX(port, command);
     usleep(30000); // this gives the mount time to repsond
-                   // else all responsed will be offset by 1 from their respective commands
+                   // else all responses will be offset by 1 from their respective commands
                    // Should be able to replace this by changing serial to canonical mode
+                   // if it causes significant delays later, for now is good
     return RX(port);
 }
 
@@ -171,35 +172,77 @@ void parse_Command(int port, char input[MAX_INPUT])
 
     else if (strcasecmp(input, "manual") == 0)
     {
-        printf("Manual Mode: Use 'l' and 'r' to move\nPress 'c' to cancel\n");
+        printf("Manual Mode: Use 'q' and 'r' to track left and right\nUse 'a' and 'd' to step left and right\nPress 'c' to cancel\n");
         system("/bin/stty raw");
         do
         {
             c = getchar();
 
-            if (c == 'l')
+            if (c == 'q')
             {
                 send_Command(port, "K2");
                 send_Command(port, "G230");
                 send_Command(port, "J2");
-                while (getchar() == 'l')
+                while (!kbhit())
                 {
                 }
                 send_Command(port, "K2");
             }
 
-            else if (c == 'r')
+            else if (c == 'e')
             {
                 send_Command(port, "G231");
                 send_Command(port, "J2");
-                while (getchar() == 'r')
+                while (!kbhit())
                 {
                 }
                 send_Command(port, "K2");
             }
+
+            else if (c == 'a')
+            {
+                send_Command(port, "G230");
+                send_Command(port, "J2");
+                usleep(250000);
+                send_Command(port, "K2");
+            }
+
+            else if (c == 'd')
+            {
+                send_Command(port, "G231");
+                send_Command(port, "J2");
+                usleep(250000);
+                send_Command(port, "K2");
+            }
+
+            else if (c == 'A')
+            {
+                send_Command(port, "G230");
+                send_Command(port, "J2");
+                usleep(500000);
+                send_Command(port, "K2");
+            }
+
+            else if (c == 'D')
+            {
+                send_Command(port, "G231");
+                send_Command(port, "J2");
+                usleep(500000);
+                send_Command(port, "K2");
+            }
+            
         } while (c != 'c');
         system("/bin/stty cooked");
+        send_Command(port, "K1");
+        send_Command(port, "K2");
     }
+
+    else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
+    {
+        shutdown_Controller(port);
+        exit(1);
+    }
+
     else
         parse_Response((send_Command(port, input)));
 }
