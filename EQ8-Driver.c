@@ -15,7 +15,6 @@
 #define MAX_INPUT 32
 #include "EQ8-Comms.c"
 
-
 int kbhit()
 {
     struct timeval tv;
@@ -24,7 +23,7 @@ int kbhit()
     tv.tv_usec = 0;
     FD_ZERO(&fds);
     FD_SET(STDIN_FILENO, &fds); //STDIN_FILENO is 0
-    select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
+    select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
     return FD_ISSET(STDIN_FILENO, &fds);
 }
 
@@ -155,7 +154,7 @@ void parse_Command(int port, char input[MAX_INPUT])
         {
             printf("\rPosition:\t%s", (*send_Command(port, channel)).data);
             fflush(stdout);
-        }  while (!(kbhit() && getchar() == 'c'));
+        } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
     }
 
@@ -163,36 +162,29 @@ void parse_Command(int port, char input[MAX_INPUT])
     {
         printf("Manual Mode: Use 'l' and 'r' to move\nPress 'c' to cancel\n");
         system("/bin/stty raw");
-
-        char c;
         do
         {
             c = getchar();
 
             if (c == 'l')
             {
-                TX(port, "G230");
-                usleep(20000);
-                TX(port, "J2");
-                while (c == 'l')
+                send_Command(port, "K2"); 
+                send_Command(port, "G230");
+                send_Command(port, "J2");
+                while (getchar() == 'l')
                 {
-                    c = getchar();
                 }
-                TX(port, "K2");
+                send_Command(port, "K2");
             }
 
             else if (c == 'r')
             {
-                TX(port, "G231");
-                usleep(30000);
-                TX(port, "J2");
-                while (c == 'r')
+                send_Command(port, "G231");
+                send_Command(port, "J2");
+                while (getchar() == 'r')
                 {
-                    c = getchar();
                 }
-
-                TX(port, "K2");
-                usleep(30000);
+                send_Command(port, "K2");
             }
         } while (c != 'c');
         system("/bin/stty cooked");

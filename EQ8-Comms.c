@@ -8,10 +8,6 @@
 *
 * This library allows for low level communication with the motor 
 * controllers through a USB - RJ45 Serial connection.
-* Though designated as a driver, this program is not one by strict definition,
-* but rather it exists to provide the same functionality as a driver would.
-* It largely complies (with a few execptions with the general principles dictated 
-* by ASCOM found at: https://ascom-standards.org/Developer/Principles.htm
 *
 * No logical-error checking functionality is provided here (for instance,
 * attempting to set the GOTO location while the mount is moving).
@@ -32,7 +28,10 @@
 
 bool verbose = 0; //Enables verbose terminal output for debugging
 
-struct response //Structure used to return both a success flag and data
+/* *
+ * Structure used to return both a success flag and data
+ * */
+struct response 
 {
     int flag;      // Response flag, negative = error
     char data[10]; // data
