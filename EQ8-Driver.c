@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 13/02/2020
+* Last modifiied on: 18/02/2020
 * 
 * This library contains mid level mount controlling functionality:
 *   - Parsing of error codes.
@@ -11,8 +11,10 @@
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
-#define VERSION_DRIVER 1.4
+#define VERSION_DRIVER 1.5
 #define MAX_INPUT 32
+#define STEPS_PER_REV_CHANNEL_2 0xA9EC00
+#define STEPS_PER_DEGREE (STEPS_PER_REV_CHANNEL_2 / 360);
 #include "EQ8-Comms.c"
 
 /* *
@@ -37,8 +39,15 @@ int kbhit()
  * Takes the data array and an output buffer as arguments
  * If output buffer == 0, fuction prints conversion only
  * */
-void convert(char data_in[9], char data_out[7])
+int convert(char data_in[9], char data_out[7])
 {
+    unsigned long length = strlen(data_in);
+    if (length != 7 && verbose)
+    {
+        printf("DEBUG_COMMS: Convert stringlen error, length: %lu\n", length);
+        return -1;
+    }
+
     char data_out_temp[7] = {data_in[5],
                              data_in[6],
                              data_in[3],
@@ -48,7 +57,11 @@ void convert(char data_in[9], char data_out[7])
     if (data_out != 0)
         strcpy(data_out, data_out_temp);
     else
-        printf("Converted:\t%s", data_out_temp);
+        printf("Converted:\t%s\n", data_out_temp);
+
+    if (verbose)
+        printf("Converted:\t%s\n", data_out_temp);
+    return 1;
 }
 
 /* *
@@ -87,19 +100,22 @@ int parse_Response(struct response *response)
 {
     int flag = (*response).flag;
     char data[9];
+    int success = flag;
     strcpy(data, (*response).data);
     printf("Response:\t%s\n", data);
     if (flag == -1 && verbose)
     {
         printf("DEBUG: Read Error");
+        success = -1;
     }
 
     else if (flag == 1)
     {
+        success = 1;
         if (data[0] == '!')
         {
             printf("Mount Error: ");
-
+            success = 0;
             if (data[1] == '0')
                 printf("Unknown Command\n");
             if (data[1] == '1')
@@ -113,10 +129,10 @@ int parse_Response(struct response *response)
             if (data[1] == '5')
                 printf("Driver Sleeping\n");
         }
-        else if (flag && strlen(data) == 8)
+        else if (strlen(data) == 8)
             convert(data, 0);
     }
-    return flag;
+    return success;
 }
 
 /* *
@@ -124,15 +140,11 @@ int parse_Response(struct response *response)
  * its response.
  * Returns a pointer to the structure containing flag & data
  * TODO: include retry functionality.
- * Returns port ID on success, -1 on failure.
  * */
 struct response *send_Command(int port, char command[])
 {
     TX(port, command);
     usleep(30000); // this gives the mount time to repsond
-                   // else all responses will be offset by 1 from their respective commands
-                   // Should be able to replace this by changing serial to canonical mode
-                   // if it causes significant delays later, for now is good
     return RX(port);
 }
 
@@ -144,7 +156,19 @@ struct response *send_Command(int port, char command[])
 void parse_Command(int port, char input[MAX_INPUT])
 {
     char c = '\0';
-    if (strcasecmp(input, "position") == 0)
+
+    if (strcasecmp(input, "help") == 0)
+    {
+        printf("Driver version %.2f\n", VERSION_DRIVER);
+        printf("Comms version %.2f\n\n", VERSION_COMMS);
+        printf("Commands:\n");
+        printf("position\tContinuously prints position of mount axis.\n");
+        printf("manual\t\tAllows user to manually control position of mount.\n");
+        printf("go*\t\tMoves mount to a given target position. * specifies axis (1 or 2).\n");
+        printf("exit\t\tSevers port connection and quits program.\n\n");
+    }
+
+    else if (strcasecmp(input, "position") == 0)
     {
         printf("Position Mode: \nPress 'c' to cancel\n");
         while (c != '1' && c != '2')
@@ -230,11 +254,49 @@ void parse_Command(int port, char input[MAX_INPUT])
                 usleep(500000);
                 send_Command(port, "K2");
             }
-            
+
         } while (c != 'c');
         system("/bin/stty cooked");
         send_Command(port, "K1");
         send_Command(port, "K2");
+    }
+
+    else if (strcasecmp(input, "go1") == 0)
+    {
+        char target[MAX_INPUT];
+        char data_out[9] = {'S'};
+        printf("\nEnter target:\t");
+        scanf("%s", target);
+
+        strcat(data_out, target);
+        convert(data_out, data_out);
+
+        char TX_Buffer[9] = {'S', '1'};
+        strcat(TX_Buffer, data_out);
+
+        send_Command(port, "K1");
+        send_Command(port, TX_Buffer);
+        send_Command(port, "G101");
+        send_Command(port, "J1");
+    }
+
+    else if (strcasecmp(input, "go2") == 0)
+    {
+        char target[MAX_INPUT];
+        char data_out[9] = {'S'};
+        printf("\nEnter target:\t");
+        scanf("%s", target);
+
+        strcat(data_out, target);
+        convert(data_out, data_out);
+
+        char TX_Buffer[9] = {'S', '2'};
+        strcat(TX_Buffer, data_out);
+
+        send_Command(port, "K2");
+        send_Command(port, TX_Buffer);
+        send_Command(port, "G201");
+        send_Command(port, "J2");
     }
 
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
@@ -250,8 +312,9 @@ void parse_Command(int port, char input[MAX_INPUT])
 int main(void)
 {
     system("clear");
-    char input[MAX_INPUT];
     int fd = setup_Controller();
+
+    char input[32];
     while (true)
     {
         printf("\nCommand:\t");
