@@ -15,6 +15,10 @@
 #define MAX_INPUT 32
 #include "EQ8-Comms.c"
 
+/* *
+* Determines if a key has been pressed, non blocking
+* Not perfect and should be replaced but works for now
+* */
 int kbhit()
 {
     struct timeval tv;
@@ -30,16 +34,21 @@ int kbhit()
 /* *
  * Positional data sent from the mount is formatted:    0xefcdab
  * This function reformats for readability to:          0xabcdef
+ * Takes the data array and a pointer to the output buffer as arguments
+ * If output buffer == 0, fuction prints conversion only
  * */
-void convert(char data_in[9])
+void convert(char data_in[9], char *data_out)
 {
-    char data_out[7] = {data_in[5],
-                        data_in[6],
-                        data_in[3],
-                        data_in[4],
-                        data_in[1],
-                        data_in[2]};
-    printf("Converted:\t%s", data_out);
+    char data_out_temp[7] = {data_in[5],
+                             data_in[6],
+                             data_in[3],
+                             data_in[4],
+                             data_in[1],
+                             data_in[2]};
+    if (data_out != 0)
+        strcpy(data_out, data_out_temp);
+    else
+        printf("Converted:\t%s", data_out_temp);
 }
 
 /* *
@@ -105,7 +114,7 @@ int parse_Response(struct response *response)
                 printf("Driver Sleeping\n");
         }
         else if (flag && strlen(data) == 8)
-            convert(data);
+            convert(data, 0);
     }
     return flag;
 }
@@ -149,10 +158,12 @@ void parse_Command(int port, char input[MAX_INPUT])
         else if (c == '2')
             channel[1] = '2';
 
+        char data[7];
         system("/bin/stty raw");
         do
         {
-            printf("\rPosition:\t%s", (*send_Command(port, channel)).data);
+            convert((*send_Command(port, channel)).data, data);
+            printf("\rPosition:\t%s", data);
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
@@ -168,7 +179,7 @@ void parse_Command(int port, char input[MAX_INPUT])
 
             if (c == 'l')
             {
-                send_Command(port, "K2"); 
+                send_Command(port, "K2");
                 send_Command(port, "G230");
                 send_Command(port, "J2");
                 while (getchar() == 'l')
