@@ -105,10 +105,10 @@ int TX(int port, char command[])
     strcat(writebuffer, "\r");
 
     if (verbose)
-        printf("Writing: %s\n", writebuffer);
+        printf("COMMS_DEBUG(TX) Writing: %s\n", writebuffer);
     int X = write(port, writebuffer, strlen(writebuffer));
     if (verbose)
-        printf("COMMS_DEBUG: %i bytes written\n", X);
+        printf("COMMS_DEBUG(TX): %i bytes written\n", X);
     return X;
 }
 
@@ -135,8 +135,7 @@ struct response *RX(int port)
     strcpy(this_response.data, read_buffer);
     if (verbose)
     {
-        printf("COMMS_DEBUG: %i Bytes recieved, ", bytes_read);
-        printf("%s\n", read_buffer);
+        printf("COMMS_DEBUG(RX): %i Bytes recieved, %s\n", bytes_read, read_buffer);
         //printf("COMMS_DEBUG: Written to struct: Flag: %i\n", this_response.flag);
         //printf("COMMS_DEBUG: Written to struct: Data: %s\n", this_response.data);
     }
