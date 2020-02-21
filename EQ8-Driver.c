@@ -37,6 +37,10 @@ int kbhit()
  * Positional data sent from the mount is formatted:    0xefcdab
  * This function reformats so commands can be written:  0xabcdef
  * and sent correctly
+ * data_in is the unformatted command and must include the 
+ * character command flag and channel eg. if setting target position
+ * data_in  = "S1abcdef"
+ * data_out = "S1efcdab" 
  * */
 int convert_Command(char data_in[8], char data_out[8])
 {
@@ -67,6 +71,10 @@ int convert_Command(char data_in[8], char data_out[8])
  * Note that all responses from mount are RC terminated, hence 8 Bytes
  * Takes the data array and an output buffer as arguments
  * If output buffer == 0, fuction prints conversion only
+ * To avoid formatting issues, the trailing RC from the mount is
+ * replaced with '\0'
+ * data_in = "=efcdab\r"
+ * data_out = "=abcdef\0"
  * */
 int convert_Response(char data_in[8], char data_out[8])
 {
@@ -171,9 +179,19 @@ int parse_Response(struct response *response)
  * */
 struct response *send_Command(char command[])
 {
+    int retries = 0;
+    struct response *resp;
+    
+    SEND:
     TX(port, command);
     usleep(30000); // this gives the mount time to repsond
-    return RX(port);
+    resp = RX(port);
+    if((*resp).data[0] == '!' && retries < 10) {
+        usleep(10000);
+        retries++;
+        goto SEND; // retry command
+    }
+    return resp;
 }
 
 /**
@@ -213,7 +231,8 @@ unsigned long angle_to_argument(int channel, int angle)
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
-    char command[10];
+    send_Command("K2");
+    char command[10]; //Less than 10 causes problems
     command[0] = 'S';
     if (channel == 1)
         command[1] = '1';
@@ -221,15 +240,7 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         command[1] = '2';
     else return -1;
     strcat(command, target);
-    if (!isFormatted)
-        convert_Command(command, command);
-    
-    
-    
-    
-    
-    
-    send_Command("K2");
+    if (!isFormatted) convert_Command(command, command);
     send_Command(command);
     send_Command("G201");
     send_Command("J2");
@@ -384,7 +395,7 @@ void parse_Command(char input[MAX_INPUT])
 
         long target = angle_to_argument(channel, atoi(angle));
         if (verbose)
-            printf("Target: %lX\n", target);
+            printf("Target: %06lX\n", target);
 
        // char target_C[8];
         //ltoa(target, target_C, 16, 8);
