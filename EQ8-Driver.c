@@ -173,20 +173,20 @@ int parse_Response(struct response *response)
 
 /**
  * Function to send a command to the mount and recieve
- * its response.
+ * its response. Retries TX upon mount error 10 times..E
  * Returns a pointer to the structure containing flag & data
- * TODO: include retry functionality.
  * */
 struct response *send_Command(char command[])
 {
     int retries = 0;
     struct response *resp;
-    
-    SEND:
+
+SEND:
     TX(port, command);
     usleep(30000); // this gives the mount time to repsond
     resp = RX(port);
-    if((*resp).data[0] == '!' && retries < 10) {
+    if ((*resp).data[0] == '!' && retries < 10)
+    {
         usleep(10000);
         retries++;
         goto SEND; // retry command
@@ -221,7 +221,7 @@ unsigned long angle_to_argument(int channel, int angle)
     return target_Pos;
 }
 
-/**
+/**c
  * Function to move mount to target position.
  * Channel specifies which axis
  * Target is the target encoder position as a character array
@@ -231,19 +231,30 @@ unsigned long angle_to_argument(int channel, int angle)
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
-    send_Command("K2");
+    if (channel == 1) send_Command("K1");
+    else if (channel == 2) send_Command("K2");
+    else return -1;
+
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
-    if (channel == 1)
-        command[1] = '1';
-    else if (channel == 2)
-        command[1] = '2';
-    else return -1;
+    if (channel == 1) command[1] = '1';
+    else if (channel == 2) command[1] = '2';
+
     strcat(command, target);
     if (!isFormatted) convert_Command(command, command);
-    send_Command(command);
-    send_Command("G201");
-    send_Command("J2");
+
+    if (channel == 1)
+    {
+        send_Command(command);
+        send_Command("G101");
+        send_Command("J1");
+    }
+    else if (channel == 2)
+    {
+        send_Command(command);
+        send_Command("G201");
+        send_Command("J2");
+    }
     return 1;
 }
 
@@ -397,7 +408,7 @@ void parse_Command(char input[MAX_INPUT])
         if (verbose)
             printf("Target: %06lX\n", target);
 
-       // char target_C[8];
+        // char target_C[8];
         //ltoa(target, target_C, 16, 8);
         //Need way to convert long to char[]
         //go_to(channel, target_C, false);
