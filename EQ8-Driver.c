@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 18/02/2020
+* Last modifiied on: 21/02/2020
 * 
 * This library contains mid level mount controlling functionality:
 *   - Parsing of error codes.
@@ -11,12 +11,12 @@
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
-#define VERSION_DRIVER 1.5
+#define VERSION_DRIVER 1.7
 #define MAX_INPUT 32
-#define STEPS_PER_REV_CHANNEL_2 0xA9EC00
-#define STEPS_PER_DEGREE (STEPS_PER_REV_CHANNEL_2 / 360);
+#define STEPS_PER_REV_CHANNEL 0xA9EC00
 #include "EQ8-Comms.c"
 
+int port;
 /* *
 * Determines if a key has been pressed, non blocking
 * Not perfect and should be replaced but works for now
@@ -35,31 +35,59 @@ int kbhit()
 
 /* *
  * Positional data sent from the mount is formatted:    0xefcdab
- * This function reformats for readability to:          0xabcdef
- * Takes the data array and an output buffer as arguments
- * If output buffer == 0, fuction prints conversion only
+ * This function reformats so commands can be written:  0xabcdef
+ * and sent correctly
  * */
-int convert(char data_in[9], char data_out[7])
+int convert_Command(char data_in[8], char data_out[8])
 {
     unsigned long length = strlen(data_in);
-    if (length != 7 && verbose)
+    if (length < 7 && verbose)
     {
-        printf("DEBUG_COMMS: Convert stringlen error, length: %lu\n", length);
+        printf("DRIVER_DEBUG: Convert stringlen error, length: %lu\n", length);
         return -1;
     }
 
-    char data_out_temp[7] = {data_in[5],
+    char data_out_temp[8] = {data_in[0],
+                             data_in[1],
+                             data_in[6],
+                             data_in[7],
+                             data_in[4],
+                             data_in[5],
+                             data_in[2],
+                             data_in[3]};
+    strcpy(data_out, data_out_temp);
+    if (verbose)
+        printf("Converted:\t%s\n", data_out_temp);
+    return 1;
+}
+
+/* *
+ * Positional data sent from the mount is formatted:    0xefcdab
+ * This function reformats for readability to:          0xabcdef
+ * Note that all responses from mount are RC terminated, hence 8 Bytes
+ * Takes the data array and an output buffer as arguments
+ * If output buffer == 0, fuction prints conversion only
+ * */
+int convert_Response(char data_in[8], char data_out[8])
+{
+    unsigned long length = strlen(data_in);
+    if (length < 7 && verbose)
+    {
+        printf("DRIVER_DEBUG: Convert stringlen error, length: %lu\n", length);
+        return -1;
+    }
+
+    char data_out_temp[8] = {data_in[0],
+                             data_in[5],
                              data_in[6],
                              data_in[3],
                              data_in[4],
                              data_in[1],
-                             data_in[2]};
+                             data_in[2],
+                             '\0'};
     if (data_out != 0)
         strcpy(data_out, data_out_temp);
-    else
-        printf("Converted:\t%s\n", data_out_temp);
-
-    if (verbose)
+    else if (verbose)
         printf("Converted:\t%s\n", data_out_temp);
     return 1;
 }
@@ -130,7 +158,7 @@ int parse_Response(struct response *response)
                 printf("Driver Sleeping\n");
         }
         else if (strlen(data) == 8)
-            convert(data, 0);
+            convert_Response(data, 0);
     }
     return success;
 }
@@ -141,11 +169,54 @@ int parse_Response(struct response *response)
  * Returns a pointer to the structure containing flag & data
  * TODO: include retry functionality.
  * */
-struct response *send_Command(int port, char command[])
+struct response *send_Command(char command[])
 {
     TX(port, command);
     usleep(30000); // this gives the mount time to repsond
     return RX(port);
+}
+
+unsigned long angle_to_argument(int channel, int angle)
+{
+    char curr_Pos_String[8];
+    if (channel == 1)
+        convert_Response((*send_Command("j1")).data, curr_Pos_String);
+    else if (channel == 2)
+        convert_Response((*send_Command("j2")).data, curr_Pos_String);
+    else
+        return -1;
+    curr_Pos_String[0] = '0';
+    curr_Pos_String[7] = '0';
+    unsigned long curr_Pos = strtol(curr_Pos_String, NULL, 16);
+    unsigned long target_Pos = (curr_Pos + (angle * (STEPS_PER_REV_CHANNEL / 360))) % 0xA9EC00;
+    if (verbose)
+    {
+        printf("DRIVER_DEBUG: Current position: %06lX\n", curr_Pos);
+        printf("DRIVER_DEBUG: Target position: %06lX\n", target_Pos);
+    }
+    return target_Pos;
+}
+
+int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
+{
+    char command[10];
+    command[0] = 'S';
+    if (channel == 1)
+        command[1] = '1';
+    else if (channel == 2)
+        command[1] = '2';
+    else
+        return -1;
+
+    strcat(command, target);
+    if (!isFormatted)
+        convert_Command(command, command);
+
+    send_Command("K2");
+    send_Command(command);
+    send_Command("G201");
+    send_Command("J2");
+    return 1;
 }
 
 /* *
@@ -153,7 +224,7 @@ struct response *send_Command(int port, char command[])
  * Allows for command strings to be defined for more complex
  * or series of commands
  * */
-void parse_Command(int port, char input[MAX_INPUT])
+void parse_Command(char input[MAX_INPUT])
 {
     char c = '\0';
 
@@ -187,7 +258,7 @@ void parse_Command(int port, char input[MAX_INPUT])
         system("/bin/stty raw");
         do
         {
-            convert((*send_Command(port, channel)).data, data);
+            convert_Command((*send_Command(channel)).data, data);
             printf("\rPosition:\t%s", data);
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
@@ -204,99 +275,104 @@ void parse_Command(int port, char input[MAX_INPUT])
 
             if (c == 'q')
             {
-                send_Command(port, "K2");
-                send_Command(port, "G230");
-                send_Command(port, "J2");
+                send_Command("K2");
+                send_Command("G230");
+                send_Command("J2");
                 while (!kbhit())
                 {
                 }
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
             else if (c == 'e')
             {
-                send_Command(port, "G231");
-                send_Command(port, "J2");
+                send_Command("G231");
+                send_Command("J2");
                 while (!kbhit())
                 {
                 }
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
             else if (c == 'a')
             {
-                send_Command(port, "G230");
-                send_Command(port, "J2");
+                send_Command("G230");
+                send_Command("J2");
                 usleep(250000);
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
             else if (c == 'd')
             {
-                send_Command(port, "G231");
-                send_Command(port, "J2");
+                send_Command("G231");
+                send_Command("J2");
                 usleep(250000);
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
             else if (c == 'A')
             {
-                send_Command(port, "G230");
-                send_Command(port, "J2");
+                send_Command("G230");
+                send_Command("J2");
                 usleep(500000);
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
             else if (c == 'D')
             {
-                send_Command(port, "G231");
-                send_Command(port, "J2");
+                send_Command("G231");
+                send_Command("J2");
                 usleep(500000);
-                send_Command(port, "K2");
+                send_Command("K2");
             }
 
         } while (c != 'c');
         system("/bin/stty cooked");
-        send_Command(port, "K1");
-        send_Command(port, "K2");
+        send_Command("K1");
+        send_Command("K2");
     }
 
     else if (strcasecmp(input, "go1") == 0)
     {
         char target[MAX_INPUT];
-        char data_out[9] = {'S'};
         printf("\nEnter target:\t");
         scanf("%s", target);
-
-        strcat(data_out, target);
-        convert(data_out, data_out);
-
-        char TX_Buffer[9] = {'S', '1'};
-        strcat(TX_Buffer, data_out);
-
-        send_Command(port, "K1");
-        send_Command(port, TX_Buffer);
-        send_Command(port, "G101");
-        send_Command(port, "J1");
+        go_to(1, target, false);
     }
 
     else if (strcasecmp(input, "go2") == 0)
     {
         char target[MAX_INPUT];
-        char data_out[9] = {'S'};
         printf("\nEnter target:\t");
         scanf("%s", target);
+        go_to(2, target, false);
+    }
 
-        strcat(data_out, target);
-        convert(data_out, data_out);
+    else if (strcasecmp(input, "turn") == 0)
+    {
+        char angle[8];
+        while (c != '1' && c != '2')
+        {
+            printf("\rChannel 1 / 2? ");
+            c = getchar();
+        }
+        int channel = 0;
+        if (c == '1')
+            channel = 1;
+        else if (c == '2')
+            channel = 2;
 
-        char TX_Buffer[9] = {'S', '2'};
-        strcat(TX_Buffer, data_out);
+        printf("\nEnter angle:\t");
+        scanf("%s", angle);
 
-        send_Command(port, "K2");
-        send_Command(port, TX_Buffer);
-        send_Command(port, "G201");
-        send_Command(port, "J2");
+        long target = angle_to_argument(channel, atoi(angle));
+        if (verbose)
+            printf("Target: %lX\n", target);
+
+       // char target_C[8];
+        //ltoa(target, target_C, 16, 8);
+        //Need way to convert long to char[]
+        //go_to(channel, target_C, false);
     }
 
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
@@ -306,19 +382,22 @@ void parse_Command(int port, char input[MAX_INPUT])
     }
 
     else
-        parse_Response((send_Command(port, input)));
+        parse_Response((send_Command(input)));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    if (argc > 1 && strcasecmp(argv[1], "verbose") == 0)
+    {
+        verbose = 1;
+    }
     system("clear");
-    int fd = setup_Controller();
-
+    port = setup_Controller();
     char input[32];
     while (true)
     {
         printf("\nCommand:\t");
         scanf("%s", input);
-        parse_Command(fd, input);
+        parse_Command(input);
     }
 }

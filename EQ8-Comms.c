@@ -137,8 +137,8 @@ struct response *RX(int port)
     {
         printf("COMMS_DEBUG: %i Bytes recieved, ", bytes_read);
         printf("%s\n", read_buffer);
-        printf("COMMS_DEBUG: Written to struct: Flag: %i\n", this_response.flag);
-        printf("COMMS_DEBUG: Written to struct: Data: %s\n", this_response.data);
+        //printf("COMMS_DEBUG: Written to struct: Flag: %i\n", this_response.flag);
+        //printf("COMMS_DEBUG: Written to struct: Data: %s\n", this_response.data);
     }
     return &this_response;
 }
