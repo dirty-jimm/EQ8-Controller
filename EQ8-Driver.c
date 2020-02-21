@@ -93,7 +93,7 @@ int convert_Response(char data_in[8], char data_out[8])
 }
 
 /* *
- * Function to controller, call port setup.
+ * Function to setup controller, call port setup.
  * Returns port ID on success, -1 on failure.
  * */
 int setup_Controller(void)
@@ -163,7 +163,7 @@ int parse_Response(struct response *response)
     return success;
 }
 
-/* *
+/**
  * Function to send a command to the mount and recieve
  * its response.
  * Returns a pointer to the structure containing flag & data
@@ -176,6 +176,12 @@ struct response *send_Command(char command[])
     return RX(port);
 }
 
+/**
+ * Function to return the target position of the mount in order
+ * to turn it a given number of degrees
+ * NOTE:    Will likely be best to have this return char[], char[] to long is trivial
+ *          long to char[] not so
+ **/
 unsigned long angle_to_argument(int channel, int angle)
 {
     char curr_Pos_String[8];
@@ -185,8 +191,7 @@ unsigned long angle_to_argument(int channel, int angle)
         convert_Response((*send_Command("j2")).data, curr_Pos_String);
     else
         return -1;
-    curr_Pos_String[0] = '0';
-    curr_Pos_String[7] = '0';
+    curr_Pos_String[0] = '0'; //strips the leading '='
     unsigned long curr_Pos = strtol(curr_Pos_String, NULL, 16);
     unsigned long target_Pos = (curr_Pos + (angle * (STEPS_PER_REV_CHANNEL / 360))) % 0xA9EC00;
     if (verbose)
@@ -194,9 +199,18 @@ unsigned long angle_to_argument(int channel, int angle)
         printf("DRIVER_DEBUG: Current position: %06lX\n", curr_Pos);
         printf("DRIVER_DEBUG: Target position: %06lX\n", target_Pos);
     }
+
     return target_Pos;
 }
 
+/**
+ * Function to move mount to target position.
+ * Channel specifies which axis
+ * Target is the target encoder position as a character array
+ * isFormatted specifies whether target is formatted for readability (0xabcdef),
+ * or in the mounts format (0xefcdab), allowing for either to be used.
+ * Returns 1 on success, -1 on failure, including any errors thrown by mount.
+ **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
     char command[10];
@@ -205,13 +219,16 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         command[1] = '1';
     else if (channel == 2)
         command[1] = '2';
-    else
-        return -1;
-
+    else return -1;
     strcat(command, target);
     if (!isFormatted)
         convert_Command(command, command);
-
+    
+    
+    
+    
+    
+    
     send_Command("K2");
     send_Command(command);
     send_Command("G201");
@@ -221,7 +238,7 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 
 /* *
  * Function to interpret keyboard commands.
- * Allows for command strings to be defined for more complex
+ * Allows for command strings to be defined for more complex,
  * or series of commands
  * */
 void parse_Command(char input[MAX_INPUT])
@@ -258,7 +275,7 @@ void parse_Command(char input[MAX_INPUT])
         system("/bin/stty raw");
         do
         {
-            convert_Command((*send_Command(channel)).data, data);
+            convert_Response((*send_Command(channel)).data, data);
             printf("\rPosition:\t%s", data);
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
