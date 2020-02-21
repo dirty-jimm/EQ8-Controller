@@ -42,12 +42,12 @@ int kbhit()
  * data_in  = "S1abcdef"
  * data_out = "S1efcdab" 
  * */
-int convert_Command(char data_in[8], char data_out[8])
+int convert_Command(char data_in[10], char data_out[8])
 {
     unsigned long length = strlen(data_in);
     if (length < 7 && verbose)
     {
-        printf("DRIVER_DEBUG: Convert stringlen error, length: %lu\n", length);
+        printf("DRIVER_DEBUG(convert_Command): Convert stringlen error, length: %lu\n", length);
         return -1;
     }
 
@@ -61,7 +61,10 @@ int convert_Command(char data_in[8], char data_out[8])
                              data_in[3]};
     strcpy(data_out, data_out_temp);
     if (verbose)
-        printf("Converted:\t%s\n", data_out_temp);
+    {
+        printf("DRIVER_DEBUG(convert_Command):data_in\t%s\n", data_in);
+        printf("DRIVER_DEBUG(convert_Command):data_out\t%s\n", data_out);
+    }
     return 1;
 }
 
@@ -81,7 +84,7 @@ int convert_Response(char data_in[8], char data_out[8])
     unsigned long length = strlen(data_in);
     if (length < 7 && verbose)
     {
-        printf("DRIVER_DEBUG: Convert stringlen error, length: %lu\n", length);
+        printf("DRIVER_DEBUG(convert_Response): Convert stringlen error, length: %lu\n", length);
         return -1;
     }
 
@@ -96,7 +99,7 @@ int convert_Response(char data_in[8], char data_out[8])
     if (data_out != 0)
         strcpy(data_out, data_out_temp);
     else if (verbose)
-        printf("Converted:\t%s\n", data_out_temp);
+        printf("DRIVER_DEBUG(convert_Response)Converted: %s\n", data_out_temp);
     return 1;
 }
 
@@ -138,10 +141,10 @@ int parse_Response(struct response *response)
     char data[9];
     int success = flag;
     strcpy(data, (*response).data);
-    printf("Response:\t%s\n", data);
+    printf("Response: %s\n", data);
     if (flag == -1 && verbose)
     {
-        printf("DEBUG: Read Error");
+        printf("DRIVER_DEBUG(parse_Response): Read Error");
         success = -1;
     }
 
@@ -214,8 +217,8 @@ unsigned long angle_to_argument(int channel, int angle)
     unsigned long target_Pos = (curr_Pos + (angle * (STEPS_PER_REV_CHANNEL / 360))) % 0xA9EC00;
     if (verbose)
     {
-        printf("DRIVER_DEBUG: Current position: %06lX\n", curr_Pos);
-        printf("DRIVER_DEBUG: Target position: %06lX\n", target_Pos);
+        printf("DRIVER_DEBUG(angle_to_argument): Current position: %06lX\n", curr_Pos);
+        printf("DRIVER_DEBUG(angle_to_argument): Target position: %06lX\n", target_Pos);
     }
 
     return target_Pos;
@@ -231,18 +234,25 @@ unsigned long angle_to_argument(int channel, int angle)
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
-    if (channel == 1) send_Command("K1");
-    else if (channel == 2) send_Command("K2");
-    else return -1;
+    if (channel == 1)
+        send_Command("K1");
+    else if (channel == 2)
+        send_Command("K2");
+    else
+        return -1;
 
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
-    if (channel == 1) command[1] = '1';
-    else if (channel == 2) command[1] = '2';
+    if (channel == 1)
+        command[1] = '1';
+    else if (channel == 2)
+        command[1] = '2';
 
     strcat(command, target);
-    if (!isFormatted) convert_Command(command, command);
 
+
+    if (!isFormatted)
+        convert_Command(command, command);
     if (channel == 1)
     {
         send_Command(command);
@@ -286,19 +296,15 @@ void parse_Command(char input[MAX_INPUT])
             printf("\rChannel 1 / 2? ");
             c = getchar();
         }
-        char channel[3];
-        channel[0] = 'j';
-        if (c == '1')
-            channel[1] = '1';
-        else if (c == '2')
-            channel[1] = '2';
-
         char data[7];
         system("/bin/stty raw");
         do
-        {
-            convert_Response((*send_Command(channel)).data, data);
-            printf("\rPosition:\t%s", data);
+        { //This has suddenly started causing issues if declared outside loop
+            char command[3] = "j1";
+            if (c == '2')
+                command[1] = '2';
+            convert_Response((*send_Command(command)).data, data);
+            printf("\rPosition: %s", data);
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
@@ -373,7 +379,7 @@ void parse_Command(char input[MAX_INPUT])
 
     else if (strcasecmp(input, "go1") == 0)
     {
-        char target[MAX_INPUT];
+        char target[6];
         printf("\nEnter target:\t");
         scanf("%s", target);
         go_to(1, target, false);
@@ -381,7 +387,7 @@ void parse_Command(char input[MAX_INPUT])
 
     else if (strcasecmp(input, "go2") == 0)
     {
-        char target[MAX_INPUT];
+        char target[6];
         printf("\nEnter target:\t");
         scanf("%s", target);
         go_to(2, target, false);
@@ -435,7 +441,7 @@ int main(int argc, char **argv)
     char input[32];
     while (true)
     {
-        printf("\nCommand:\t");
+        printf("\nCommand:");
         scanf("%s", input);
         parse_Command(input);
     }
