@@ -250,7 +250,6 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 
     strcat(command, target);
 
-
     if (!isFormatted)
         convert_Command(command, command);
     if (channel == 1)
@@ -284,27 +283,27 @@ void parse_Command(char input[MAX_INPUT])
         printf("Commands:\n");
         printf("position\tContinuously prints position of mount axis.\n");
         printf("manual\t\tAllows user to manually control position of mount.\n");
-        printf("go*\t\tMoves mount to a given target position. * specifies axis (1 or 2).\n");
+        printf("go*\t\tMoves mount to a given target (encoder) position. * specifies axis (1/2).\n");
+        printf("turn\t\tMoves mount a given number of degrees.\n");
         printf("exit\t\tSevers port connection and quits program.\n\n");
     }
 
     else if (strcasecmp(input, "position") == 0)
     {
         printf("Position Mode: \nPress 'c' to cancel\n");
-        while (c != '1' && c != '2')
-        {
-            printf("\rChannel 1 / 2? ");
-            c = getchar();
-        }
         char data[7];
         system("/bin/stty raw");
+        char command[3] = "j1";
         do
-        { //This has suddenly started causing issues if declared outside loop
-            char command[3] = "j1";
-            if (c == '2')
-                command[1] = '2';
+        {   
+            command[1] = '2';
             convert_Response((*send_Command(command)).data, data);
-            printf("\rPosition: %s", data);
+            printf("\r1: %s, ", data);
+
+            command[1] = '1';
+            convert_Response((*send_Command(command)).data, data);
+            printf("2: %s", data);
+            
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
@@ -411,8 +410,8 @@ void parse_Command(char input[MAX_INPUT])
         scanf("%s", angle);
 
         long target = angle_to_argument(channel, atoi(angle));
-        if (verbose)
-            printf("Target: %06lX\n", target);
+        // if (verbose)
+        printf("Target: %06lX\n", target);
 
         // char target_C[8];
         //ltoa(target, target_C, 16, 8);
