@@ -9,3 +9,4 @@
 
 ### Above combination will ignore all files without extension ###
 
+.vscode/c_cpp_properties.json

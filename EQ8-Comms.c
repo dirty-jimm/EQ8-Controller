@@ -24,8 +24,9 @@
 #include <termios.h>                      /* POSIX Terminal Control Definitions */
 #include <unistd.h>                       /* UNIX Standard Definitions      */
 #include <errno.h>                        /* ERROR Number Definitions           */
-#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through
-
+//#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
+#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"  // Linux
+//#define PORT "usb-FTDI_USB__-__Serial-if00-port0" // Port mount is connected through
 bool verbose = 0; //Enables verbose terminal output for debugging
 
 /* *
@@ -121,7 +122,7 @@ int TX(int port, char command[])
 struct response *RX(int port)
 {
     char read_buffer[9]; //Expecting 8 bytes as per tech document,
-    //not sure why but get fatal errors if less than 9 in buffer
+    //not sure why but get s errors if less than 9 in buffer
     int bytes_read = 0;
     static struct response this_response = {-1};
     strcpy(this_response.data, "\0"); // flush previous read
@@ -136,8 +137,6 @@ struct response *RX(int port)
     if (verbose)
     {
         printf("COMMS_DEBUG(RX): %i Bytes recieved, %s\n", bytes_read, read_buffer);
-        //printf("COMMS_DEBUG: Written to struct: Flag: %i\n", this_response.flag);
-        //printf("COMMS_DEBUG: Written to struct: Data: %s\n", this_response.data);
     }
     return &this_response;
 }
