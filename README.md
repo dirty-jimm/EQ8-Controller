@@ -20,3 +20,5 @@ Updates
     Made some minor fixes, deployed to redpitaya - code compiles, however serial comms is broken, seems to be writing garbled strings, might be
     memory/pointer reference issues. 
     }
+
+    strcat is causing issues on RP when dealing with character arrays that are not null terminated.

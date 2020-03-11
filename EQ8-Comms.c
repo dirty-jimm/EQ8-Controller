@@ -14,7 +14,7 @@
 * Each function will return a negative value on failure, positive on success
 * (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION_COMMS 1.5
+#define VERSION_COMMS 1.6
 
 #include <stdio.h>
 #include <string.h>
@@ -27,12 +27,11 @@
 #include <errno.h>   /* ERROR Number Definitions           */
 
 
-#define PORT "/dev/cu.usbserial-1410" // Port mount is connected through, Mac
-//#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
+//#define PORT "/dev/cu.usbserial-00002014" // Port mount is connected through, Mac
+#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
 //#define PORT "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0" //Linux
 #define MAC_LS "ls -1a /dev/cu.usb*"
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
-
 
 bool verbose = 0;                                                   //Enables verbose terminal output for debugging
 
@@ -92,12 +91,12 @@ int setup_Port()
     SerialPortSettings.c_cflag &= ~CSIZE;                         /* Clears the mask for setting the data size             */
     SerialPortSettings.c_cflag |= CS8;                            /* Set the data bits = 8                                 */
     SerialPortSettings.c_cflag &= ~CRTSCTS;                       /* No Hardware flow Control                         */
-    SerialPortSettings.c_cflag |= CREAD | CLOCAL;                 /* Enable receiver,Ignore Modem Control lines       */
+    SerialPortSettings.c_cflag |= CREAD | CLOCAL;                 /* Enable receiver, Ignore Modem Control lines       */
     SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);        /* Disable XON/XOFF flow control both i/p and o/p */
     SerialPortSettings.c_iflag &= (ICANON | ECHO | ECHOE | ISIG); /* Non Cannonical mode                            */
     SerialPortSettings.c_oflag &= ~OPOST;                         /*No Output Processing*/
     /* Setting Time outs */
-    SerialPortSettings.c_cc[VMIN] = 13; /* Read at least 10 characters */
+    SerialPortSettings.c_cc[VMIN] = 8; /* Read at least 10 characters */
     SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
 
     if ((tcsetattr(fd, TCSANOW, &SerialPortSettings)) != 0) /* Set the attributes to the termios structure*/
@@ -139,8 +138,8 @@ int TX(int port, char command[])
  * */
 struct response *RX(int port)
 {
-    char read_buffer[9]; //Expecting 8 bytes as per tech document,
-    //not sure why but get s errors if less than 9 in buffer
+    char read_buffer[9]; //Expecting 8 bytes as per tech document, eg. =123456\r
+    //not sure why but gets errors if less than 9 in buffer, might be \0?
     int bytes_read = 0;
     static struct response this_response = {-1};
     strcpy(this_response.data, "\0"); // flush previous read
@@ -153,8 +152,7 @@ struct response *RX(int port)
 
     strcpy(this_response.data, read_buffer);
     if (verbose)
-    {
         printf("COMMS_DEBUG(RX): %i Bytes recieved, %s\n", bytes_read, read_buffer);
-    }
+    
     return &this_response;
 }

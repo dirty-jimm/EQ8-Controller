@@ -11,7 +11,7 @@
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
-#define VERSION_DRIVER 1.7
+#define VERSION_DRIVER 1.8
 #define MAX_INPUT 32
 #define STEPS_PER_REV_CHANNEL 0xA9EC00
 #include "EQ8-Comms.c"
@@ -247,6 +247,7 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         command[1] = '1';
     else if (channel == 2)
         command[1] = '2';
+    command[2]='\0';//strcat needs null terminator
 
     strcat(command, target);
 
