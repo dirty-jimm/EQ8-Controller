@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 13/02/2020
+* Last modifiied on: 11/03/2020
 *
 *
 * This library allows for low level communication with the motor 
@@ -14,25 +14,32 @@
 * Each function will return a negative value on failure, positive on success
 * (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION_COMMS 1.4
+#define VERSION_COMMS 1.5
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h> //Linux requires this
 #include <stdlib.h>
 #include <stdbool.h>
-#include <fcntl.h>                        /* File Control Definitions           */
-#include <termios.h>                      /* POSIX Terminal Control Definitions */
-#include <unistd.h>                       /* UNIX Standard Definitions      */
-#include <errno.h>                        /* ERROR Number Definitions           */
-//#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
-#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0"  // Linux
-//#define PORT "usb-FTDI_USB__-__Serial-if00-port0" // Port mount is connected through
-bool verbose = 0; //Enables verbose terminal output for debugging
+#include <fcntl.h>   /* File Control Definitions           */
+#include <termios.h> /* POSIX Terminal Control Definitions */
+#include <unistd.h>  /* UNIX Standard Definitions      */
+#include <errno.h>   /* ERROR Number Definitions           */
+
+
+#define PORT "/dev/cu.usbserial-1410" // Port mount is connected through, Mac
+//#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
+//#define PORT "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0" //Linux
+#define MAC_LS "ls -1a /dev/cu.usb*"
+#define LINUX_LS "ls -1a /dev/serial/by-id/"
+
+
+bool verbose = 0;                                                   //Enables verbose terminal output for debugging
 
 /* *
  * Structure used to return both a success flag and data
  * */
-struct response 
+struct response
 {
     int flag;      // Response flag, negative = error
     char data[10]; // data
@@ -60,6 +67,16 @@ int setup_Port()
     if (fd == -1)
     {
         printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
+        printf("Search serial ports? Y/N ");
+        
+        char c = getchar(); 
+        if (c == 'Y' || c == 'y')
+        {
+            printf("Available USB Serial Ports:\n");
+            system(MAC_LS);
+            //system(LINUX_LS);
+            printf("\n");
+        }
         exit(-1);
     }
     else
@@ -101,12 +118,13 @@ int setup_Port()
 int TX(int port, char command[])
 {
     char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
-    strcat(writebuffer, ":");
+    strcpy(writebuffer, ":"); //this was originally strcat, cause memory leak on linux (not on Mac for some reason)
     strcat(writebuffer, command);
     strcat(writebuffer, "\r");
 
     if (verbose)
-        printf("COMMS_DEBUG(TX) Writing: %s\n", writebuffer);
+        printf("COMMS_DEBUG(TX) Command: %s\n", writebuffer);
+
     int X = write(port, writebuffer, strlen(writebuffer));
     if (verbose)
         printf("COMMS_DEBUG(TX): %i bytes written\n", X);
