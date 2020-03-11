@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 21/02/2020
+* Last modifiied on: 11/03/2020
 * 
 * This library contains mid level mount controlling functionality:
 *   - Parsing of error codes.
@@ -26,7 +26,7 @@ int kbhit()
     struct timeval tv;
     fd_set fds;
     tv.tv_sec = 0;
-    tv.tv_usec = 0;
+    tv.tv_usec = 0; 
     FD_ZERO(&fds);
     FD_SET(STDIN_FILENO, &fds); //STDIN_FILENO is 0
     select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
