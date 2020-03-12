@@ -14,7 +14,7 @@
 * Each function will return a negative value on failure, positive on success
 * (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION_COMMS 1.5
+#define VERSION_COMMS 1.81
 
 #include <stdio.h>
 #include <string.h>
@@ -27,9 +27,9 @@
 #include <errno.h>   /* ERROR Number Definitions           */
 
 
-//#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
+#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
 //#define PORT "/dev/cu.usbserial-000020" // Port mount is connected through, Mac
-#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
+//#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
 #define MAC_LS "ls -1a /dev/cu.usb*"
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 

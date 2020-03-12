@@ -11,7 +11,7 @@
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
-#define VERSION_DRIVER 1.8
+#define VERSION_DRIVER 1.81
 #define MAX_INPUT 32
 #define STEPS_PER_REV_CHANNEL 0xA9EC00
 #include "EQ8-Comms.c"

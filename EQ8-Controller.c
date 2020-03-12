@@ -9,7 +9,7 @@
 *   
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
-#define VERSION_CONTROLLER 1.8
+#define VERSION_CONTROLLER 1.81
 #include "EQ8-Driver.c"
 /* *
  * Function to interpret keyboard commands.
