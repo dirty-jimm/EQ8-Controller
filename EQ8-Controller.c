@@ -3,14 +3,86 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 12/03/2020
-* Last modifiied on: 12/03/2020
+* Last modifiied on: 17/03/2020
 * 
 * This library contains high level mount controlling functionality:
 *   
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
-#define VERSION_CONTROLLER 1.81
+#define VERSION_CONTROLLER 2.0
 #include "EQ8-Driver.c"
+
+/**
+ * Function to return the target position of the mount in order
+ * to turn it a given number of degrees
+ * NOTE:    Will likely be best to have this return char[], char[] to long is trivial
+ *          long to char[] not so
+ **/
+unsigned long angle_to_argument(int channel, int angle)
+{
+    char curr_Pos_String[8];
+    if (channel == 1)
+        convert_Response((*send_Command("j1")).data, curr_Pos_String);
+    else if (channel == 2)
+        convert_Response((*send_Command("j2")).data, curr_Pos_String);
+    else
+        return -1;
+    curr_Pos_String[0] = '0'; //strips the leading '='
+    unsigned long curr_Pos = strtol(curr_Pos_String, NULL, 16);
+    unsigned long target_Pos = (curr_Pos + (angle * (STEPS_PER_REV_CHANNEL / 360))) % 0xA9EC00;
+    if (verbose)
+    {
+        printf("DRIVER_DEBUG(angle_to_argument): Current position: %06lX\n", curr_Pos);
+        printf("DRIVER_DEBUG(angle_to_argument): Target position: %06lX\n", target_Pos);
+    }
+
+    return target_Pos;
+}
+
+/**
+ * Function to move mount to target position.
+ * Channel specifies which axis
+ * Target is the target encoder position as a character array
+ * isFormatted specifies whether target is formatted for readability (0xabcdef),
+ * or in the mounts format (0xefcdab), allowing for either to be used.
+ * Returns 1 on success, -1 on failure, including any errors thrown by mount.
+ **/
+int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
+{
+    if (channel == 1)
+        send_Command("K1");
+    else if (channel == 2)
+        send_Command("K2");
+    else
+        return -1;
+
+    char command[10]; //Less than 10 causes problems
+    command[0] = 'S';
+    if (channel == 1)
+        command[1] = '1';
+    else if (channel == 2)
+        command[1] = '2';
+    command[2]='\0';//strcat needs null terminator
+
+    strcat(command, target);
+
+    if (!isFormatted)
+        convert_Command(command, command);
+    if (channel == 1)
+    {
+        send_Command(command);
+        send_Command("G101");
+        send_Command("J1");
+    }
+    else if (channel == 2)
+    {
+        send_Command(command);
+        send_Command("G201");
+        send_Command("J2");
+    }
+    return 1;
+}
+
 /* *
  * Function to interpret keyboard commands.
  * Allows for command strings to be defined for more complex,
