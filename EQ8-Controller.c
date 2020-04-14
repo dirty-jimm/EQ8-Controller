@@ -62,7 +62,7 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         command[1] = '1';
     else if (channel == 2)
         command[1] = '2';
-    command[2]='\0';//strcat needs null terminator
+    command[2] = '\0'; //strcat needs null terminator
 
     strcat(command, target);
 
@@ -83,6 +83,24 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
     return 1;
 }
 
+char *get_Position()
+{
+    static char data[32];
+   
+    char command[3] = "j1";
+    char data1[8], data2[8];
+
+    command[1] = '1';
+    convert_Response((*send_Command(command)).data, data1);
+  
+    command[1] = '2';
+    convert_Response((*send_Command(command)).data, data2);
+    strcpy(data, "1: ");
+    strcat(data, data1);
+    strcat(data, ", 2: ");
+    strcat(data, data2);
+    return data;
+}
 /* *
  * Function to interpret keyboard commands.
  * Allows for command strings to be defined for more complex,
@@ -106,23 +124,16 @@ void parse_Command(char input[MAX_INPUT])
 
     else if (strcasecmp(input, "position") == 0)
     {
-        printf("Position Mode: \nPress 'c' to cancel\n");
-        char data[7];
+
+        printf("Position Mode\nPress 'c' to exit\n");
         system("/bin/stty raw");
-        char command[3] = "j1";
         do
         {   
-            command[1] = '2';
-            convert_Response((*send_Command(command)).data, data);
-            printf("\r1: %s, ", data);
-
-            command[1] = '1';
-            convert_Response((*send_Command(command)).data, data);
-            printf("2: %s", data);
-            
+            printf("%s\r", get_Position());
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
+       
     }
 
     else if (strcasecmp(input, "manual") == 0)
@@ -256,7 +267,7 @@ int main(int argc, char **argv)
     char input[32];
     while (true)
     {
-        printf("\nCommand:");
+        printf("Command:");
         scanf("%s", input);
         parse_Command(input);
     }
