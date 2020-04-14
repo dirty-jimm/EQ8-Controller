@@ -47,7 +47,7 @@ int convert_Command(char data_in[10], char data_out[8])
     size_t length = strlen(data_in);
     if (length < 7 && verbose)
     {
-        printf("DRIVER_DEBUG(convert_Command): Convert stringlen error, length: %lu\n", length);
+        printf("DRIVER_DEBUG(convert_Command): Convert stringlen error, length: %zu\n", length);
         return -1;
     }
 
@@ -130,7 +130,7 @@ int shutdown_Controller(int port)
 
 /* *
  * Function to interpret response from mount
- * Determines if response is error (and interprets),
+ * Determines if response is error (and reports error type),
  * or success and presents data.
  * Prints interpretation.
  * Returns flag.
@@ -183,12 +183,16 @@ struct response *send_Command(char command[])
 {
     int retries = 0;
     struct response *resp;
+    char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
+    strcpy(writebuffer, ":");
+    strcat(writebuffer, command);
+    strcat(writebuffer, "\r");
 
 SEND:
-    TX(port, command);
+    TX(port, writebuffer);
     usleep(30000); // this gives the mount time to repsond
     resp = RX(port);
-    if ((*resp).data[0] == '!' && retries < 10)
+    if ((*resp).data[0] == '!' && (*resp).data[1] != '0' && retries < 10)
     {
         usleep(10000);
         retries++;
