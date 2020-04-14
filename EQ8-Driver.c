@@ -5,14 +5,14 @@
 * Created on: 11/02/2020
 * Last modifiied on: 11/03/2020
 * 
-* This library contains mid level mount controlling functionality:
+* This library contains low level functionality:
+*   - Command formatting.
 *   - Parsing of error codes.
 *   - Command retries and logical error handling.
 * This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
 #define VERSION_DRIVER 2.0
-#define MAX_INPUT 32
 #define STEPS_PER_REV_CHANNEL 0xA9EC00
 #include "EQ8-Comms.c"
 
@@ -44,6 +44,9 @@ int kbhit()
  * */
 int convert_Command(char data_in[10], char data_out[8])
 {
+    if (verbose)
+    printf("DRIVER_DEBUG(convert_Command):data_in\t%s\n", data_in);
+    
     size_t length = strlen(data_in);
     if (length < 7 && verbose)
     {
@@ -62,7 +65,7 @@ int convert_Command(char data_in[10], char data_out[8])
     strcpy(data_out, data_out_temp);
     if (verbose)
     {
-        printf("DRIVER_DEBUG(convert_Command):data_in\t%s\n", data_in);
+        
         printf("DRIVER_DEBUG(convert_Command):data_out\t%s\n", data_out);
     }
     return 1;
@@ -107,7 +110,7 @@ int convert_Response(char data_in[8], char data_out[8])
  * Function to setup controller, call port setup.
  * Returns port ID on success, -1 on failure.
  * */
-int setup_Controller(void)
+int begin_Comms(void)
 {
     int fd = setup_Port();
 
