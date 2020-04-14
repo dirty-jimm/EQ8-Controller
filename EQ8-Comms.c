@@ -29,7 +29,6 @@
 //#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
 //#define PORT "/dev/cu.usbserial-000020" // Port mount is connected through, Mac (Alt)
 #define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
-#define MAC_LS "ls -1a /dev/cu.usb*"
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 
 bool verbose = 0; //Enables verbose terminal output for debugging
@@ -40,7 +39,7 @@ bool verbose = 0; //Enables verbose terminal output for debugging
 struct response
 {
     int flag;      // Response flag, negative = error
-    char data[10]; // data
+    char data[6]; // data
 };
 
 /* *
@@ -50,18 +49,13 @@ struct response
 int setup_Port()
 {
     if (verbose)
+    {
         printf("Verbose Mode: on\n");
-    printf("\nEQ8 Pro Mount Comms:\n");
-
-    if (verbose)
+        printf("\nEQ8 Pro Mount Comms:\n");
         printf("Version: %.2f\n", VERSION_COMMS);
+    }
 
-    int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
-                                                       //  fd = open("/dev/ttyUSB0",O_RDWR | O_NOCTTY | O_NDELAY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
-                                                       /* O_RDWR   - Read/Write access to serial port       */
-                                                       /* O_NOCTTY - No terminal will control the process   */
-                                                       /* Open in blocking mode,read will wait              */
-
+    int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd == -1)
     {
         printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
@@ -71,8 +65,7 @@ int setup_Port()
         if (c == 'Y' || c == 'y')
         {
             printf("Available USB Serial Ports:\n");
-            system(MAC_LS);
-            //system(LINUX_LS);
+            system(LINUX_LS);
             printf("\n");
         }
         exit(-1);
@@ -84,7 +77,7 @@ int setup_Port()
     tcgetattr(fd, &SerialPortSettings);      /* Get the current attributes of the Serial port */
     cfsetispeed(&SerialPortSettings, B9600); /* Set Read  Speed as 9600                       */
     cfsetospeed(&SerialPortSettings, B9600); /* Set Write Speed as 9600                      */
-    /* 8N1 Mode */
+
     //Control Flags
     SerialPortSettings.c_cflag &= ~PARENB;        /* Disables the Parity Enable bit(PARENB),So No Parity   */
     SerialPortSettings.c_cflag &= ~CSTOPB;        /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
@@ -102,7 +95,7 @@ int setup_Port()
     SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
 
     if ((tcsetattr(fd, TCSANOW, &SerialPortSettings)) != 0) /* Set the attributes to the termios structure*/
-        printf("ERROR ! in Setting attributes\n");
+        printf("Error in Setting attributes\n");
     else if (verbose)
         printf("BaudRate = 9600 \nStopBits = 1 \nParity   = none\n");
 
@@ -141,7 +134,7 @@ struct response *RX(int port)
     memset(this_response.data, 0, strlen(this_response.data)); // flush previous read
 
     int bytes_read = read(port, this_response.data, 8); /* Read the data */
-    tcflush(port, TCIFLUSH);                  /* Flush RX buffer */
+    tcflush(port, TCIFLUSH);                            /* Flush RX buffer */
 
     if (this_response.data[0] == '=' || this_response.data[0] == '!') //valid response from mount
         this_response.flag = 1;
