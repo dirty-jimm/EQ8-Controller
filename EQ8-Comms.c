@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 06/04/2020
+* Last modifiied on: 14/04/2020
 *
 *
 * This library allows for low level communication with the motor 
@@ -14,7 +14,7 @@
 * Each function will return a negative value on failure, positive on success
 * (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
-#define VERSION_COMMS 2.0
+#define VERSION_COMMS 2.1
 
 #include <stdio.h>
 #include <string.h>
@@ -26,15 +26,13 @@
 #include <unistd.h>  /* UNIX Standard Definitions      */
 #include <errno.h>   /* ERROR Number Definitions           */
 
-
 //#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
 //#define PORT "/dev/cu.usbserial-000020" // Port mount is connected through, Mac (Alt)
 #define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
 #define MAC_LS "ls -1a /dev/cu.usb*"
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 
-
-bool verbose = 0;                                                   //Enables verbose terminal output for debugging
+bool verbose = 0; //Enables verbose terminal output for debugging
 
 /* *
  * Structure used to return both a success flag and data
@@ -68,8 +66,8 @@ int setup_Port()
     {
         printf("Port Error\nCould not find mount on port: %s\nCheck connection\n", PORT);
         printf("Search serial ports? Y/N ");
-        
-        char c = getchar(); 
+
+        char c = getchar();
         if (c == 'Y' || c == 'y')
         {
             printf("Available USB Serial Ports:\n");
@@ -88,17 +86,17 @@ int setup_Port()
     cfsetospeed(&SerialPortSettings, B9600); /* Set Write Speed as 9600                      */
     /* 8N1 Mode */
     //Control Flags
-    SerialPortSettings.c_cflag &= ~PARENB;                        /* Disables the Parity Enable bit(PARENB),So No Parity   */
-    SerialPortSettings.c_cflag &= ~CSTOPB;                        /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
-    SerialPortSettings.c_cflag &= ~CSIZE;                         /* Clears the mask for setting the data size             */
-    SerialPortSettings.c_cflag |= CS8;                            /* Set the data bits = 8                                 */
-    SerialPortSettings.c_cflag &= ~CRTSCTS;                       /* No Hardware flow Control                         */
-    SerialPortSettings.c_cflag |= CREAD | CLOCAL;                 /* Enable receiver,Ignore Modem Control lines       */
+    SerialPortSettings.c_cflag &= ~PARENB;        /* Disables the Parity Enable bit(PARENB),So No Parity   */
+    SerialPortSettings.c_cflag &= ~CSTOPB;        /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
+    SerialPortSettings.c_cflag &= ~CSIZE;         /* Clears the mask for setting the data size             */
+    SerialPortSettings.c_cflag |= CS8;            /* Set the data bits = 8                                 */
+    SerialPortSettings.c_cflag &= ~CRTSCTS;       /* No Hardware flow Control                         */
+    SerialPortSettings.c_cflag |= CREAD | CLOCAL; /* Enable receiver,Ignore Modem Control lines       */
     //Input Flags
     SerialPortSettings.c_iflag &= ~(IXON | IXOFF | IXANY);        /* Disable XON/XOFF flow control both i/p and o/p */
     SerialPortSettings.c_lflag &= (ICANON | ECHO | ECHOE | ISIG); /* Non Cannonical mode                            */
     //Output Flags
-    SerialPortSettings.c_oflag &= ~OPOST;                         /*No Output Processing*/
+    SerialPortSettings.c_oflag &= ~OPOST; /*No Output Processing*/
     //Control Characters
     SerialPortSettings.c_cc[VMIN] = 13; /* Read at least 10 characters */
     SerialPortSettings.c_cc[VTIME] = 0; /* Wait indefinetly   */
@@ -118,13 +116,8 @@ int setup_Port()
  * and should be ommitted from the "command" argument.
  * Returns number of bytes sent on success, -1 on failure.
  * */
-int TX(int port, char command[])
+int TX(int port, char writebuffer[])
 {
-    char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
-    strcpy(writebuffer, ":");
-    strcat(writebuffer, command);
-    strcat(writebuffer, "\r");
-
     if (verbose)
     {
         printf("COMMS_DEBUG(TX) Command: %s\n", writebuffer);
@@ -144,23 +137,19 @@ int TX(int port, char command[])
  * */
 struct response *RX(int port)
 {
-    char read_buffer[8]; //Expecting 8 bytes as per tech document,
-    //not sure why but get errors if less than 9 in buffer on mac
-    int bytes_read = 0;
     static struct response this_response = {-1};
-    strcpy(this_response.data, "\0"); // flush previous read
+    memset(this_response.data, 0, strlen(this_response.data)); // flush previous read
 
-    bytes_read = read(port, &read_buffer, 8); /* Read the data */
+    int bytes_read = read(port, this_response.data, 8); /* Read the data */
     tcflush(port, TCIFLUSH);                  /* Flush RX buffer */
 
-    if (read_buffer[0] == '=' || read_buffer[0] == '!') //valid response from mount
+    if (this_response.data[0] == '=' || this_response.data[0] == '!') //valid response from mount
         this_response.flag = 1;
 
-    strcpy(this_response.data, read_buffer);
     if (verbose)
     {
         printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);
-        printf("COMMS_DEBUG(RX): Response: %s\n", read_buffer);
+        printf("COMMS_DEBUG(RX): Response: %s\n", this_response.data);
     }
     return &this_response;
 }
