@@ -7,10 +7,10 @@
 * 
 * This library contains high level mount controlling functionality:
 *   
-* This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 #define VERSION_CONTROLLER 2.0
 #include "EQ8-Driver.c"
+#define MAX_INPUT 128
 
 /**
  * Function to return the target position of the mount in order
@@ -86,13 +86,13 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 char *get_Position()
 {
     static char data[32];
-   
+
     char command[3] = "j1";
-    char data1[8], data2[8];
+    char data1[6], data2[6];
 
     command[1] = '1';
     convert_Response((*send_Command(command)).data, data1);
-  
+
     command[1] = '2';
     convert_Response((*send_Command(command)).data, data2);
     strcpy(data, "1: ");
@@ -101,6 +101,7 @@ char *get_Position()
     strcat(data, data2);
     return data;
 }
+
 /* *
  * Function to interpret keyboard commands.
  * Allows for command strings to be defined for more complex,
@@ -128,12 +129,11 @@ void parse_Command(char input[MAX_INPUT])
         printf("Position Mode\nPress 'c' to exit\n");
         system("/bin/stty raw");
         do
-        {   
+        {
             printf("%s\r", get_Position());
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
-       
     }
 
     else if (strcasecmp(input, "manual") == 0)
@@ -203,20 +203,26 @@ void parse_Command(char input[MAX_INPUT])
         send_Command("K2");
     }
 
-    else if (strcasecmp(input, "go1") == 0)
+    else if (strcasecmp(input, "go") == 0)
     {
-        char target[6];
-        printf("\nEnter target:\t");
-        scanf("%s", target);
-        go_to(1, target, false);
-    }
+        while (c != '1' && c != '2')
+        {
+            printf("\rChannel 1 / 2? ");
+            c = getchar();
+        }
+        int channel = 0;
+        if (c == '1')
+            channel = 1;
+        else if (c == '2')
+            channel = 2;
 
-    else if (strcasecmp(input, "go2") == 0)
-    {
         char target[6];
         printf("\nEnter target:\t");
         scanf("%s", target);
-        go_to(2, target, false);
+        if (channel == 1)
+            go_to(1, target, false);
+        else if (channel == 2)
+            go_to(2, target, false);
     }
 
     else if (strcasecmp(input, "turn") == 0)
@@ -237,13 +243,11 @@ void parse_Command(char input[MAX_INPUT])
         scanf("%s", angle);
 
         long target = angle_to_argument(channel, atoi(angle));
-        // if (verbose)
-        printf("Target: %06lX\n", target);
-
-        // char target_C[8];
-        //ltoa(target, target_C, 16, 8);
-        //Need way to convert long to char[]
-        //go_to(channel, target_C, false);
+        char target_C[6];
+        sprintf(target_C, "%06lX", target);
+        if (verbose)
+        printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", target_C);
+        go_to(channel, target_C, false);
     }
 
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
@@ -259,12 +263,11 @@ void parse_Command(char input[MAX_INPUT])
 int main(int argc, char **argv)
 {
     if (argc > 1 && strcasecmp(argv[1], "verbose") == 0)
-    {
         verbose = 1;
-    }
+
     system("clear");
-    port = setup_Controller();
-    char input[32];
+    port = begin_Comms();
+    char input[MAX_INPUT];
     while (true)
     {
         printf("Command:");
