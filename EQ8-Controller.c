@@ -3,13 +3,14 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 12/03/2020
-* Last modifiied on: 17/03/2020
+* Last modifiied on: 30/04/2020
 * 
 * This library contains high level mount controlling functionality:
 *   
 *-------------------------------------------------------------*/
 #define VERSION_CONTROLLER 2.0
-#include "EQ8-Driver.c"
+#include "EQ8-Driver.h"
+#include <math.h>
 #define MAX_INPUT 128
 
 /**
@@ -18,7 +19,7 @@
  * NOTE:    Will likely be best to have this return char[], char[] to long is trivial
  *          long to char[] not so
  **/
-unsigned long angle_to_argument(int channel, int angle)
+unsigned long angle_to_argument(int channel, double angle)
 {
     char curr_Pos_String[8];
     if (channel == 1)
@@ -29,7 +30,8 @@ unsigned long angle_to_argument(int channel, int angle)
         return -1;
     curr_Pos_String[0] = '0'; //strips the leading '='
     unsigned long curr_Pos = strtol(curr_Pos_String, NULL, 16);
-    unsigned long target_Pos = (curr_Pos + (angle * (STEPS_PER_REV_CHANNEL / 360))) % 0xA9EC00;
+    unsigned long target_Pos = curr_Pos + roundf(angle * (STEPS_PER_REV_CHANNEL / 360));
+    target_Pos = target_Pos % 0xA9EC00;
     if (verbose)
     {
         printf("DRIVER_DEBUG(angle_to_argument): Current position: %06lX\n", curr_Pos);
@@ -242,11 +244,11 @@ void parse_Command(char input[MAX_INPUT])
         printf("\nEnter angle:\t");
         scanf("%s", angle);
 
-        long target = angle_to_argument(channel, atoi(angle));
+        long target = angle_to_argument(channel, atof(angle));
         char target_C[6];
         sprintf(target_C, "%06lX", target);
         if (verbose)
-        printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", target_C);
+            printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", target_C);
         go_to(channel, target_C, false);
     }
 
