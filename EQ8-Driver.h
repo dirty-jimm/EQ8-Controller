@@ -14,7 +14,7 @@
 
 #define VERSION_DRIVER 2.0
 #define STEPS_PER_REV_CHANNEL 0xA9EC00
-#include "EQ8-Comms.c"
+#include "EQ8-Comms.h"
 
 int port;
 /* *
