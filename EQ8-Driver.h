@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 11/03/2020
+* Last modifiied on: 01/05/2020
 * 
 * This library contains low level functionality:
 *   - Command formatting.
@@ -235,6 +235,14 @@ unsigned long angle_to_argument(int channel, double angle)
     return target_Pos;
 }
 
+char * lu_to_string(unsigned long input)
+{
+    static char output[6];
+    memset(output, 0, strlen(output));
+    sprintf(output, "%06lX", input);
+    return output;
+}
+
 /**
  * Function to move mount to target position.
  * Channel specifies which axis
@@ -295,7 +303,13 @@ unsigned long get_Position(int channel)
         printf("Invalid channel number");
         return '\0';
     }
-    convert_Response((*send_Command(command)).data, data);
+    struct response *resp = send_Command(command);
+    if ((*resp).flag == 2) //error
+    {
+        printf("Position enquiry failed\n");
+        return -1;
+    }
+    convert_Response((*resp).data, data);
     data[0] = '0'; //strips the leading '='
     unsigned long position = strtol(data, NULL, 16);
     return position;

@@ -38,7 +38,7 @@ bool verbose = 0; //Enables verbose terminal output for debugging
  * */
 struct response
 {
-    int flag;      // Response flag, negative = error
+    int flag;     // Response flag, negative = error
     char data[6]; // data
 };
 
@@ -136,13 +136,16 @@ struct response *RX(int port)
     int bytes_read = read(port, this_response.data, 8); /* Read the data */
     tcflush(port, TCIFLUSH);                            /* Flush RX buffer */
 
-    if (this_response.data[0] == '=' || this_response.data[0] == '!') //valid response from mount
+    if (this_response.data[0] == '=') //valid response from mount
         this_response.flag = 1;
 
-    if (verbose)
-    {
-        printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);
-        printf("COMMS_DEBUG(RX): Response: %s\n", this_response.data);
-    }
+    if (this_response.data[0] == '!')
+        this_response.flag = 2;
+        
+        if (verbose)
+        {
+            printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);
+            printf("COMMS_DEBUG(RX): Response: %s\n", this_response.data);
+        }
     return &this_response;
 }

@@ -27,11 +27,14 @@ void parse_Command(char input[MAX_INPUT])
         printf("Driver version %.2f\n", VERSION_DRIVER);
         printf("Comms version %.2f\n\n", VERSION_COMMS);
         printf("Commands:\n");
-        printf("position\tContinuously prints position of mount axis.\n");
+        printf("position\tContinuously prints position of mount axes.\n");
         printf("manual\t\tAllows user to manually control position of mount.\n");
-        printf("go*\t\tMoves mount to a given target (encoder) position. * specifies axis (1/2).\n");
+        printf("go\t\tMoves mount to a given target (encoder) position. * specifies axis (1/2).\n");
         printf("turn\t\tMoves mount a given number of degrees.\n");
+        printf("scan\t\tStarts initialisation scan.\n");
         printf("exit\t\tSevers port connection and quits program.\n\n");
+        printf("\nAll other inputs are interpreted as commands and are sent to the mount.\n\n");
+        
     }
     else if (strcasecmp(input, "position") == 0)
     {
@@ -155,11 +158,9 @@ void parse_Command(char input[MAX_INPUT])
         scanf("%s", angle);
 
         long target = angle_to_argument(channel, atof(angle));
-        char target_C[6];
-        sprintf(target_C, "%06lX", target);
         if (verbose)
-            printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", target_C);
-        go_to(channel, target_C, false);
+            printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", lu_to_string(target));
+        go_to(channel,  lu_to_string(target), false);
     }
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
     {
@@ -174,10 +175,6 @@ void parse_Command(char input[MAX_INPUT])
 
         unsigned long range_lu = strtol(range, NULL, 10);
         scan(range_lu);
-    }
-    else if (strcasecmp(input, "status") == 0)
-    {
-        printf("Status: %i\n", get_Status(2));
     }
     else
         parse_Response((send_Command(input)));
