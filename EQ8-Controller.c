@@ -43,10 +43,11 @@ void parse_Command(char input[MAX_INPUT])
         system("/bin/stty raw");
         do
         {
-            printf("1: %06luX,2: %06luX\r", get_Position(1), get_Position(2));
+            printf("\r1: %06lX,2: %6lX\t\t\t", get_Position(1), get_Position(2));
             fflush(stdout);
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
+        printf("\n");
     }
     else if (strcasecmp(input, "manual") == 0)
     {
@@ -170,11 +171,15 @@ void parse_Command(char input[MAX_INPUT])
     else if (strcasecmp(input, "scan") == 0)
     {
         char range[MAX_INPUT];
+        char field[MAX_INPUT];
         printf("\nEnter link range (meters):\t");
         scanf("%s", range);
+        printf("\nEnter link field (degrees):\t");
+        scanf("%s", field);
 
         unsigned long range_lu = strtol(range, NULL, 10);
-        scan(range_lu);
+        double field_d = strtod(field, NULL);
+        scan(range_lu, field_d);
     }
     else
         parse_Response((send_Command(input)));
