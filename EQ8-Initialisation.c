@@ -14,7 +14,7 @@
 //Laser properties
 #define W0 0.017
 #define LAMBDA 0.000001550
-#define SCALE 0.4
+#define SCALE 0.2
 
 double get_Resolution(unsigned long range)
 {
@@ -42,14 +42,21 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, int 
         {
             //wait while mount is moving
         }
+        //usleep(10000);
         reading = get_Analog(1);
         if (reading > *max)
         {
             *max = reading;
             *Xp = get_Position(1);
             *Yp = get_Position(2);
+            printf("MAXIMUM - ");
         }
-        fprintf(csv, "%06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
+        if (reading > 1000)
+            exit(1);
+
+        fprintf(csv, "%06lX,%06lX, %i\n", get_Position(1), get_Position(2), reading);
+        printf("%06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
+        printf("%06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
         count++;
     } while (count <= steps);
     return 0;
@@ -91,6 +98,7 @@ int scan(unsigned long range, double field)
     FILE *csv = fopen("scan.csv", "w+");
     int reading = get_Analog(1); //read the intensity
     fprintf(csv, "%06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
+  
     *maxp = reading;       //set first reading as max by default
     *Xp = get_Position(1); //^^
     *Yp = get_Position(2); //^^
@@ -109,12 +117,13 @@ int scan(unsigned long range, double field)
         curr = time(NULL);
         double percentage = ((double)completed * 100) / (double)total_steps;
         time_t diff = curr - start;
-        printf("Progress: %.1f%%, Time remaining: %.0f seconds\r", percentage, diff/(percentage/100));
+        printf("Progress: %.1f%%, Time remaining: %.0f minutes\t\t\r", percentage, ((diff/(percentage/100))-diff)/60);
         fflush(stdout);
     } while (steps <= max_steps);
     //Finish check
 
     //go_to the coordinates corresponding to max intensity
+    printf("Going to: %lX, %lX\n", *Xp, *Yp);
     go_to(1, lu_to_string(*Xp), false);
     go_to(2, lu_to_string(*Yp), false);
 

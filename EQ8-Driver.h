@@ -207,6 +207,22 @@ SEND:
     return resp;
 }
 
+/* *
+ * Function to get status of mount.
+ * Returns 1 if axis is moving,
+ * 0 if axis is stationary 
+ * */
+int get_Status(int channel)
+{
+    char command[3] = {'f', '1'};
+    if (channel == 2)
+        command[1] = '2';
+    struct response *this_Response = send_Command(command);
+    if (verbose)
+        printf("Status: %s\n", (*this_Response).data);
+    return atoi(&(this_Response->data[2]));
+}
+
 /**
  * Function to return the target position of the mount in order
  * to turn it a given number of degrees
@@ -235,7 +251,7 @@ unsigned long angle_to_argument(int channel, double angle)
     return target_Pos;
 }
 
-char * lu_to_string(unsigned long input)
+char *lu_to_string(unsigned long input)
 {
     static char output[6];
     memset(output, 0, strlen(output));
@@ -253,19 +269,24 @@ char * lu_to_string(unsigned long input)
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
-    if (channel == 1)
-        send_Command("K1");
-    else if (channel == 2)
-        send_Command("K2");
-    else
-        return -1;
-
+    int axis = 0;
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
     if (channel == 1)
+    {
+        axis =1;
+        send_Command("K1");
         command[1] = '1';
+    }
     else if (channel == 2)
+    {
+        axis = 2;
+        send_Command("K2");
         command[1] = '2';
+    }
+    else
+        return -1;
+
     command[2] = '\0'; //strcat needs null terminator
 
     strcat(command, target);
@@ -277,9 +298,24 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         send_Command(command);
         send_Command("G101");
         send_Command("J1");
+
+        while (get_Status(axis))
+        {
+            //wait while mount is moving
+        }
+        send_Command(command);
+        send_Command("G101");
+        send_Command("J1");
     }
     else if (channel == 2)
     {
+        send_Command(command);
+        send_Command("G201");
+        send_Command("J2");
+        while (get_Status(axis))
+        {
+            //wait while mount is moving
+        }
         send_Command(command);
         send_Command("G201");
         send_Command("J2");
@@ -313,20 +349,4 @@ unsigned long get_Position(int channel)
     data[0] = '0'; //strips the leading '='
     unsigned long position = strtol(data, NULL, 16);
     return position;
-}
-
-/* *
- * Function to get status of mount.
- * Returns 1 if axis is moving,
- * 0 if axis is stationary 
- * */
-int get_Status(int channel)
-{
-    char command[3] = {'f', '1'};
-    if (channel == 2)
-        command[1] = '2';
-    struct response *this_Response = send_Command(command);
-    if (verbose)
-        printf("Status: %s\n", (*this_Response).data);
-    return atoi(&(this_Response->data[2]));
 }
