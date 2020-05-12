@@ -9,7 +9,6 @@
 *   - Command formatting.
 *   - Parsing of error codes.
 *   - Command retries and logical error handling.
-* This should be the highest-level library common to all controllers.
 *-------------------------------------------------------------*/
 
 #define VERSION_DRIVER 2.0
@@ -34,6 +33,31 @@ int kbhit()
     FD_SET(STDIN_FILENO, &fds); //STDIN_FILENO is 0
     select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
     return FD_ISSET(STDIN_FILENO, &fds);
+}
+
+/* *
+ * Function to setup controller, call port setup.
+ * Returns port ID on success, -1 on failure.
+ * */
+int begin_Comms(void)
+{
+    int fd = setup_Port();
+
+    if (verbose)
+    {
+        printf("\nEQ8 Pro Mount Driver:\n");
+        printf("Version: %.2f\n\n", VERSION_DRIVER);
+    }
+    return fd;
+}
+
+/* *
+ * Function to shutdown port connection.
+ * Returns port ID on success, -1 on failure.
+ * */
+int shutdown_Controller(int port)
+{
+    return close(port); /* Close the serial port */
 }
 
 /* *
@@ -107,31 +131,6 @@ int convert_Response(char data_in[8], char data_out[8])
     else if (verbose)
         printf("DRIVER_DEBUG(convert_Response)Converted: %s\n", data_out_temp);
     return 1;
-}
-
-/* *
- * Function to setup controller, call port setup.
- * Returns port ID on success, -1 on failure.
- * */
-int begin_Comms(void)
-{
-    int fd = setup_Port();
-
-    if (verbose)
-    {
-        printf("\nEQ8 Pro Mount Driver:\n");
-        printf("Version: %.2f\n\n", VERSION_DRIVER);
-    }
-    return fd;
-}
-
-/* *
- * Function to shutdown port connection.
- * Returns port ID on success, -1 on failure.
- * */
-int shutdown_Controller(int port)
-{
-    return close(port); /* Close the serial port */
 }
 
 /* *
@@ -298,24 +297,9 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
         send_Command(command);
         send_Command("G101");
         send_Command("J1");
-
-        while (get_Status(axis))
-        {
-            //wait while mount is moving
-        }
-        send_Command(command);
-        send_Command("G101");
-        send_Command("J1");
     }
     else if (channel == 2)
     {
-        send_Command(command);
-        send_Command("G201");
-        send_Command("J2");
-        while (get_Status(axis))
-        {
-            //wait while mount is moving
-        }
         send_Command(command);
         send_Command("G201");
         send_Command("J2");

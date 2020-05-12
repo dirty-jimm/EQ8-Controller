@@ -3,7 +3,11 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 28/04/2020
-* Last modifiied on: 12/05/2020po
+* Last modifiied on: 12/05/2020
+*
+* This library contains scanning functionailty.
+*
+*
 *-------------------------------------------------------------*/
 #define VERSION_Initialisation 2.2
 #include <time.h>

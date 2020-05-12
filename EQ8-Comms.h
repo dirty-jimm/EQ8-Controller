@@ -3,16 +3,11 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
-* Last modifiied on: 14/04/2020
+* Last modifiied on: 12/05/2020
 *
-*
+
 * This library allows for low level communication with the motor 
 * controllers through a USB - RJ45 Serial connection.
-*
-* No logical-error checking functionality is provided here (for instance,
-* attempting to set the GOTO location while the mount is moving).
-* Each function will return a negative value on failure, positive on success
-* (for recieve, this is done so as the .flag value in the returned structure)
 *-------------------------------------------------------------*/
 #define VERSION_COMMS 2.1
 
