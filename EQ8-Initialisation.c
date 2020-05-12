@@ -15,23 +15,29 @@
 
 struct point
 {
-    unsigned long pos_1, pos_2; //channel 1 and 2 position
-    int reading;                //power reading
-    int direction;              //direction axis was travelling in
-    int axis;                   //axis that was being traversed
-    int alt_direction;          //direction that the previous axis was travelling in
+    unsigned long pos_1; //channel 1
+    unsigned long pos_2; //and 2 position
+    int reading;         //power reading
+    int direction_X;     //direction x axis was travelling in
+    int direction_Y;     //direction y axis was travelling in
 };
 
+/**Function to calculate the appropriate scanning resolution for a given link distance
+ * Based on modelling of beam width at that distance.
+ **/
 double get_Resolution(unsigned long range)
 {
     double Zr = (M_PI * pow(W0, 2)) / LAMBDA;
     return SCALE * W0 * sqrt(1 + pow((range / Zr), 2));
 }
 
-int scanline(int axis, int resolution, int direction, int steps, FILE *csv, int *max, unsigned long *Xp, unsigned long *Yp)
+/**Function to command mount to scan along an axis
+ * 
+ **/
+int scanline(int axis, int resolution, int direction, int steps, FILE *csv, struct point *max_Point, int threshold)
 {
     //printf("Axis %i, res %i, dir %i, steps %i\n", axis, resolution, direction, steps);
-    int count = 0, reading = 0, threshold = 0;
+    int count = 0, reading = 0;
     do
     {
         unsigned long curr_Pos = get_Position(axis);
@@ -44,43 +50,58 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, int 
         }
 
         go_to(axis, lu_to_string(next_Pos), false);
-        while (get_Status(axis))
+
+        while (get_Status(axis)) //wait while mount is moving
         {
-            //wait while mount is moving
         }
 
         reading = get_Analog(1);
+        unsigned long X = get_Position(1);
+        unsigned long Y = get_Position(2);
 
-        if (reading > *max)
+        fprintf(csv, "%06lX,%06lX, %i\n", X, Y, reading);
+        printf("%06lX, %06lX,  %i", X, Y, reading);
+        if (reading > max_Point->reading)
         {
-            *max = reading;
-            *Xp = get_Position(1);
-            *Yp = get_Position(2);
-            printf("\nMAXIMUM - %06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
-        }
+            max_Point->reading = reading;
+            max_Point->pos_1 = X;
+            max_Point->pos_2 = Y;
+            max_Point->direction_X = direction;
+            max_Point->direction_Y = direction;
+            if (axis == 2)
+                max_Point->direction_X = direction * (-1);
 
-        fprintf(csv, "%06lX,%06lX, %i\n", get_Position(1), get_Position(2), reading);
-        printf("%06lX, %06lX,  %i\n", get_Position(1), get_Position(2), reading);
-
-        if (reading > 10000)
-        {
-            threshold = 1;
-            break;
+            printf(" - MAXIMUM");
         }
+        printf("\n");
+
+        if (reading > threshold)
+            return 1;
 
         count++;
+
     } while (count <= steps);
-    return threshold;
+
+    return 0;
 }
 
+/**Function to initiate scan
+ * range refers to straight line link distance (meters)
+ * field refers to desired region to be scanned (degrees)
+ **/
 int scan(unsigned long range, double field)
 {
+    time_t start = time(NULL), curr;
+
     double resolution_m = get_Resolution(range);                          //resolution in meters
     double resolution_a = resolution_m / range;                           //resolution in rads
     int resolution = resolution_a / ((2 * M_PI) / STEPS_PER_REV_CHANNEL); //resolution in encoder steps
     double field_rads = (2 * M_PI * field) / 360;
     int max_steps = (field_rads / resolution_a);         //number of points in the longest line
     int total_steps = max_steps * max_steps + max_steps; //total number of points to be measured
+    char filename[64];
+    sprintf(filename, "%lu-%0.3f.csv", range, field);
+    FILE *csv = fopen(filename, "w+");
 
     //if (verbose)
     printf("\nINITIALIASTION_DEBUG(scan) - Link distance: %lu meters\n", range);
@@ -91,43 +112,35 @@ int scan(unsigned long range, double field)
     printf("INITIALIASTION_DEBUG(scan): Max Steps: %i scan steps\n", max_steps);
     printf("INITIALIASTION_DEBUG(scan): Total Steps: %i scan steps\n", total_steps);
 
-    int axis = 2;                     //Axis motor to turn
-    int direction = 1;                //The direction this line going to be scanned
-    int steps = 1;                    //How man steps are in this line
-    int max;                          //The highest link reading seen so far
-    int found = 0;                    //Has a reading above a minimum threshold been found?
-    unsigned long X, Y;               //The coordinates of the highest reading
-    int *maxp = &max;                 //Pointer to the max reading
-    unsigned long *Xp = &X, *Yp = &Y; //and to its coordinates
+    int axis = 1;      //Axis motor to turn
+    int direction = 1; //The direction this line going to be scanned
+    int steps = 1;     //How man steps are in this line, first line has 1
+    int found = 0;     //Has a reading above a minimum threshold been found?
     int completed = 0;
 
-    FILE *csv = fopen("scan.csv", "w+");
+    int reading = get_Analog(1);       //read the intensity of returned power.
+    unsigned long X = get_Position(1);
+    unsigned long Y = get_Position(2);
 
-    int reading = get_Analog(1); //read the intensity
+    struct point max_Point = {X, Y, reading, 0, 0};
+    fprintf(csv, "%06lX,%06lX,%i\n", X, Y, reading);
 
-    fprintf(csv, "%06lX,%06lX,%i\n", get_Position(1), get_Position(2), reading);
-
-    *maxp = reading;       //set first reading as max by default
-    *Xp = get_Position(1); //^^
-    *Yp = get_Position(2); //^^
-    time_t start = time(NULL), curr;
     do
     {
-        found = scanline(axis, resolution, direction, steps, csv, maxp, Xp, Yp); //scan the next line
-        completed = completed + steps;
-        axis = (axis + 1) % 2; // change axis, can either be 1 or 0
-        if (axis == 0)         // if 0:
+        if (axis == 0) // if 0:
         {
             axis = 2;                   //make it 2
             steps++;                    //increase number of steps on the next two lines
             direction = direction * -1; //reverse scan direction
         }
 
+        found = scanline(axis, resolution, direction, steps, csv, &max_Point, 10000); //scan the next line
+
+        completed = completed + steps;
+        axis = (axis + 1) % 2; // change axis, can either be 1 or0
         curr = time(NULL);
         double percentage = ((double)completed * 100) / (double)total_steps;
-        time_t diff = curr - start;
-        printf("Progress: %.1f%%, Time remaining: %.0f minutes\t\t\r", percentage, ((diff / (percentage / 100)) - diff) / 60);
-        fflush(stdout);
+        printf("Progress: %.1f%%, Time remaining: %.0f minutes\n", percentage, (((curr - start) / (percentage / 100)) - (curr - start)) / 60);
 
         if (found == 1)
             break;
@@ -135,11 +148,10 @@ int scan(unsigned long range, double field)
     } while (steps <= max_steps);
 
     //go_to the coordinates corresponding to max intensity
-    printf("Going to: %lX, %lX\n", *Xp, *Yp);
-    go_to(1, lu_to_string(*Xp), false);
-    go_to(2, lu_to_string(*Yp), false);
+    printf("Going to: %lX, %lX\n", max_Point.pos_1, max_Point.pos_2);
+    go_to(1, lu_to_string(max_Point.pos_1), false);
+    go_to(2, lu_to_string(max_Point.pos_2), false);
 
-    //recursive check
     fclose(csv);
     return 1;
 }
