@@ -3,9 +3,9 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 28/04/2020
-* Last modifiied on: 11/05/2020po
+* Last modifiied on: 12/05/2020po
 *-------------------------------------------------------------*/
-#define VERSION_Initialisation 2.0
+#define VERSION_Initialisation 2.2
 #include <time.h>
 
 //Laser properties
