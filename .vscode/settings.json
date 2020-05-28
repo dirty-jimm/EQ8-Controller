@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "system_calls.h": "c"
+        "system_calls.h": "c",
+        "eq8-driver.h": "c"
     }
 }

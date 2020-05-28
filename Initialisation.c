@@ -3,19 +3,17 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 28/04/2020
-* Last modifiied on: 12/05/2020
+* Last modifiied on: 26/05/2020
 *
 * This library contains scanning functionailty.
-*
-*
 *-------------------------------------------------------------*/
-#define VERSION_Initialisation 2.2
+#define VERSION_INITIALISATION 2.13
 #include <time.h>
 
 //Laser properties
 #define W0 0.017           //Initial beam waist
 #define LAMBDA 0.000001550 // Wavelength of laser
-#define SCALE 0.2          // Scale factor
+#define SCALE 0.1          // Scale factor
 
 struct point
 {
@@ -41,7 +39,7 @@ double get_Resolution(unsigned long range)
 int scanline(int axis, int resolution, int direction, int steps, FILE *csv, struct point *max_Point, int threshold)
 {
     //printf("Axis %i, res %i, dir %i, steps %i\n", axis, resolution, direction, steps);
-    int count = 0, reading = 0;
+    int count = 0, reading = 0, reading2 = 0;
     do
     {
         unsigned long curr_Pos = get_Position(axis);
@@ -53,17 +51,21 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, stru
             printf("Next: %06lX\n", next_Pos);
         }
 
+    NEXTPOS:
         go_to(axis, lu_to_string(next_Pos), false);
-
         while (get_Status(axis)) //wait while mount is moving
         {
         }
 
+        if (get_Position(axis) != next_Pos)
+            goto NEXTPOS;
+
         reading = get_Analog(1);
+        reading2 = get_Analog(2);
         unsigned long X = get_Position(1);
         unsigned long Y = get_Position(2);
 
-        fprintf(csv, "%06lX,%06lX, %i\n", X, Y, reading);
+        fprintf(csv, "%06lX,%06lX,%i,%i\n", X, Y, reading, reading2);
         printf("%06lX, %06lX,  %i", X, Y, reading);
         if (reading > max_Point->reading)
         {
@@ -105,7 +107,31 @@ int scan(unsigned long range, double field)
     int total_steps = max_steps * max_steps + max_steps; //total number of points to be measured
     char filename[64];
     sprintf(filename, "%lu-%0.3f.csv", range, field);
-    FILE *csv = fopen(filename, "w+");
+    FILE *control = fopen("control.csv", "r+");
+    if (control == NULL)
+    {
+        printf("Control file does not exist, generating...\n");
+        control = fopen("control.csv", "w+");
+    }
+    else
+    {
+        printf("Continue previous scan?");
+        char c = '\0';
+    READINPUT:
+        c = getchar();
+        if (c == 'y' || c == 'Y')
+        {
+        }
+
+        else if (c == 'n' || c == 'N')
+        {
+        }
+        else
+            goto READINPUT;
+    }
+
+    fprintf(control, "\nRange: %lX, Field: %0.3f", range, field);
+        FILE *csv = fopen(filename, "w+");
 
     //if (verbose)
     printf("\nINITIALIASTION_DEBUG(scan) - Link distance: %lu meters\n", range);
@@ -122,12 +148,13 @@ int scan(unsigned long range, double field)
     int found = 0;     //Has a reading above a minimum threshold been found?
     int completed = 0;
 
-    int reading = get_Analog(1);       //read the intensity of returned power.
+    int reading = get_Analog(1); //read the intensity of returned power.
+    int reading2 = get_Analog(2);
     unsigned long X = get_Position(1);
     unsigned long Y = get_Position(2);
 
     struct point max_Point = {X, Y, reading, 0, 0};
-    fprintf(csv, "%06lX,%06lX,%i\n", X, Y, reading);
+    fprintf(csv, "%06lX,%06lX,%i,%i\n", X, Y, reading, reading2);
 
     do
     {
@@ -150,6 +177,7 @@ int scan(unsigned long range, double field)
             break;
 
     } while (steps <= max_steps);
+    fprintf(control, "%i, %i, %i, %i, %i, %i", max_steps, total_steps, axis, direction, steps, completed);
 
     //go_to the coordinates corresponding to max intensity
     printf("Going to: %lX, %lX\n", max_Point.pos_1, max_Point.pos_2);
@@ -159,3 +187,5 @@ int scan(unsigned long range, double field)
     fclose(csv);
     return 1;
 }
+
+

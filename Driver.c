@@ -11,11 +11,11 @@
 *   - Command retries and logical error handling.
 *-------------------------------------------------------------*/
 
-#define VERSION_DRIVER 2.0
+#define VERSION_DRIVER 2.13
 #define STEPS_PER_REV_CHANNEL 0xA9EC00
 #define MAX_INPUT 128
 
-#include "EQ8-Comms.h"
+#include "Comms.c"
 #include <math.h>
 
 int port;
@@ -42,12 +42,6 @@ int kbhit()
 int begin_Comms(void)
 {
     int fd = setup_Port();
-
-    if (verbose)
-    {
-        printf("\nEQ8 Pro Mount Driver:\n");
-        printf("Version: %.2f\n\n", VERSION_DRIVER);
-    }
     return fd;
 }
 
@@ -219,6 +213,7 @@ int get_Status(int channel)
     struct response *this_Response = send_Command(command);
     if (verbose)
         printf("Status: %s\n", (*this_Response).data);
+
     return atoi(&(this_Response->data[2]));
 }
 
@@ -268,18 +263,18 @@ char *lu_to_string(unsigned long input)
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
 {
-    int axis = 0;
+    //int axis = 0;
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
     if (channel == 1)
     {
-        axis =1;
+        //axis =1;
         send_Command("K1");
         command[1] = '1';
     }
     else if (channel == 2)
     {
-        axis = 2;
+       // axis = 2;
         send_Command("K2");
         command[1] = '2';
     }
@@ -307,7 +302,7 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
     return 1;
 }
 
-/* *
+/**
  * Function to position of axis mount
  * */
 unsigned long get_Position(int channel)
@@ -324,7 +319,7 @@ unsigned long get_Position(int channel)
         return '\0';
     }
     struct response *resp = send_Command(command);
-    if ((*resp).flag == 2) //error
+    if ((*resp).flag == 2 || (*resp).flag == -1) //error
     {
         printf("Position enquiry failed\n");
         return -1;

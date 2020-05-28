@@ -8,21 +8,21 @@
 * This library contains high level mount controlling functionality:
 *   
 *-------------------------------------------------------------*/
-#define VERSION_CONTROLLER 2.0
-#include "EQ8-Driver.h"
-#include "system_calls.h"
-#include "EQ8-Initialisation.c"
+#define VERSION_CONTROLLER 2.13
+
+#include "Driver.c"
+#include "system_calls.c"
+#include "Initialisation.c"
+#include "SlowFeedback.c"
 
 /* *
  * Function to interpret keyboard commands.
  * Allows for command strings to be defined for more complex,
  * or series of commands
  * */
-void parse_Command(char input[MAX_INPUT])
+void help(int option)
 {
-    char c = '\0';
-
-    if (strcasecmp(input, "help") == 0)
+    if (option == 1)
     {
         printf("Driver version %.2f\n", VERSION_DRIVER);
         printf("Comms version %.2f\n\n", VERSION_COMMS);
@@ -34,29 +34,54 @@ void parse_Command(char input[MAX_INPUT])
         printf("scan\t\tStarts initialisation scan.\n");
         printf("exit\t\tSevers port connection and quits program.\n\n");
         printf("\nAll other inputs are interpreted as commands and are sent to the mount.\n\n");
-        
+    }
+}
+
+void parse_Command(char input[MAX_INPUT])
+{
+    char c = '\0';
+
+    if (strcasecmp(input, "help") == 0)
+    {
+        help(1);
     }
     else if (strcasecmp(input, "position") == 0)
     {
-
+        int temp_verbose = verbose;
+        verbose = 0;
         printf("Position Mode\nPress 'c' to exit\n");
         system("/bin/stty raw");
         do
         {
-            printf("\r1: %06lX,2: %6lX\t\t\t", get_Position(1), get_Position(2));
-            fflush(stdout);
+            unsigned long X = get_Position(1);
+            unsigned long Y = get_Position(2);
+            if (X != -1 && Y != -1)
+            {
+                printf("\r1: %06lX,2: %06lX\t\t\t", X, Y);
+                fflush(stdout);
+            }
+            else break;
+
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
         printf("\n");
+        verbose = temp_verbose;
     }
     else if (strcasecmp(input, "manual") == 0)
     {
-        printf("Manual Mode: Use 'q' and 'r' to track left and right\nUse 'a' and 'd' to step left and right\nPress 'c' to cancel\n");
+        printf("Manual Mode: Press 'c' to cancel\n");
+        printf("\nUse 'q' and 'r' to slew left and right");
+        printf("\nUse 'a' and 'd' to small step left and right");
+        printf("\nUse 'A' and 'A' to large step left and right");
+        printf("\nUse 'w' and 'd' to small step up and down");
+        printf("\nUse 'W' and 'D' to large step up and down");
+        printf("\n");
         system("/bin/stty raw");
         do
         {
             c = getchar();
-
+            unsigned long X = get_Position(1);
+            unsigned long Y = get_Position(2);
             if (c == 'q')
             {
                 send_Command("K2");
@@ -70,6 +95,7 @@ void parse_Command(char input[MAX_INPUT])
 
             else if (c == 'e')
             {
+                send_Command("K2");
                 send_Command("G231");
                 send_Command("J2");
                 while (!kbhit())
@@ -77,37 +103,73 @@ void parse_Command(char input[MAX_INPUT])
                 }
                 send_Command("K2");
             }
+            if (c == 'z')
+            {
+                send_Command("K1");
+                send_Command("G130");
+                send_Command("J1");
+                while (!kbhit())
+                {
+                }
+                send_Command("K1");
+            }
+
+            else if (c == 'x')
+            {
+                send_Command("K1");
+                send_Command("G131");
+                send_Command("J1");
+                while (!kbhit())
+                {
+                }
+                send_Command("K1");
+            }
 
             else if (c == 'a')
             {
-                send_Command("G230");
-                send_Command("J2");
-                usleep(250000);
-                send_Command("K2");
+                unsigned long next_Pos = Y + 100;
+                go_to(2, lu_to_string(next_Pos), false);
             }
 
             else if (c == 'd')
             {
-                send_Command("G231");
-                send_Command("J2");
-                usleep(250000);
-                send_Command("K2");
+                unsigned long next_Pos = Y - 100;
+                go_to(2, lu_to_string(next_Pos), false);
             }
 
             else if (c == 'A')
             {
-                send_Command("G230");
-                send_Command("J2");
-                usleep(500000);
-                send_Command("K2");
+                unsigned long next_Pos = Y + 10000;
+                go_to(2, lu_to_string(next_Pos), false);
             }
 
             else if (c == 'D')
             {
-                send_Command("G231");
-                send_Command("J2");
-                usleep(500000);
-                send_Command("K2");
+                unsigned long next_Pos = Y - 10000;
+                go_to(2, lu_to_string(next_Pos), false);
+            }
+            else if (c == 'w')
+            {
+                unsigned long next_Pos = X + 100;
+                go_to(1, lu_to_string(next_Pos), false);
+            }
+
+            else if (c == 's')
+            {
+                unsigned long next_Pos = X - 100;
+                go_to(1, lu_to_string(next_Pos), false);
+            }
+
+            else if (c == 'W')
+            {
+                unsigned long next_Pos = X + 10000;
+                go_to(1, lu_to_string(next_Pos), false);
+            }
+
+            else if (c == 'S')
+            {
+                unsigned long next_Pos = X - 10000;
+                go_to(1, lu_to_string(next_Pos), false);
             }
 
         } while (c != 'c');
@@ -161,7 +223,7 @@ void parse_Command(char input[MAX_INPUT])
         long target = angle_to_argument(channel, atof(angle));
         if (verbose)
             printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", lu_to_string(target));
-        go_to(channel,  lu_to_string(target), false);
+        go_to(channel, lu_to_string(target), false);
     }
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
     {
@@ -181,17 +243,16 @@ void parse_Command(char input[MAX_INPUT])
         double field_d = strtod(field, NULL);
         scan(range_lu, field_d);
     }
+    else if (strcasecmp(input, "feedback") == 0)
+    {
+        PID_controller();
+    }
     else
         parse_Response((send_Command(input)));
 }
 
-int main(int argc, char **argv)
+void wait_For_Input()
 {
-    if (argc > 1 && strcasecmp(argv[1], "verbose") == 0)
-        verbose = 1;
-
-    system("clear");
-    port = begin_Comms();
     char input[MAX_INPUT];
     while (true)
     {
@@ -199,4 +260,21 @@ int main(int argc, char **argv)
         scanf("%s", input);
         parse_Command(input);
     }
+}
+
+int main(int argc, char **argv)
+{
+    system("clear");
+    if (argc > 1 && strcasecmp(argv[1], "verbose") == 0)
+    {
+        verbose = 1;
+        printf("\nVerbose Mode: On\n");
+        printf("Comms: Version: %.2f\n", VERSION_COMMS);
+        printf("Driver: Version: %.2f\n", VERSION_DRIVER);
+        printf("Initialisation: Version: %.2f\n", VERSION_INITIALISATION);
+        printf("SlowFeedback: Version: %.2f\n", VERSION_SLOW_FEEDBACK);
+        printf("Controller: Version: %.2f\n", VERSION_CONTROLLER);
+    }
+    port = begin_Comms();
+    wait_For_Input();
 }

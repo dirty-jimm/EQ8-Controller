@@ -4,12 +4,16 @@
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
 * Last modifiied on: 12/05/2020
-*
+* orignial  1006927
+*turning 10 left (10) 1006929-6928
+*turning 10 right (-10) 1006931-6930
+*turning up (-10) 10006932-6933
+*turning down (10) 1006935-6934
 
 * This library allows for low level communication with the motor 
 * controllers through a USB - RJ45 Serial connection.
 *-------------------------------------------------------------*/
-#define VERSION_COMMS 2.1
+#define VERSION_COMMS 2.13
 
 #include <stdio.h>
 #include <string.h>
@@ -24,6 +28,7 @@
 //#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
 //#define PORT "/dev/cu.usbserial-000020" // Port mount is connected through, Mac (Alt)
 #define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
+//#define PORT "/dev/serial/by-id/usb-FTDI_UT232R_FT32U5FA-if00-port0" //Linux
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 
 bool verbose = 0; //Enables verbose terminal output for debugging
@@ -36,20 +41,8 @@ struct response
     int flag;     // Response flag, negative = error
     char data[6]; // data
 };
-
-/* *
- * Function to initialise port settings and open connection.
- * Returns port ID on success, -1 on failure.
- * */
 int setup_Port()
 {
-    if (verbose)
-    {
-        printf("Verbose Mode: on\n");
-        printf("\nEQ8 Pro Mount Comms:\n");
-        printf("Version: %.2f\n", VERSION_COMMS);
-    }
-
     int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd == -1)
     {
@@ -66,7 +59,7 @@ int setup_Port()
         exit(-1);
     }
     else
-        printf("Connected to Mount, port: %s\n", PORT);
+        printf("\nConnected to Mount on port: %s\n", PORT);
 
     struct termios SerialPortSettings;       /* Create the structure                          */
     tcgetattr(fd, &SerialPortSettings);      /* Get the current attributes of the Serial port */
@@ -136,11 +129,11 @@ struct response *RX(int port)
 
     if (this_response.data[0] == '!')
         this_response.flag = 2;
-        
-        if (verbose)
-        {
-            printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);
-            printf("COMMS_DEBUG(RX): Response: %s\n", this_response.data);
-        }
+
+    if (verbose)
+    {
+        printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);
+        printf("COMMS_DEBUG(RX): Response: %s\n", this_response.data);
+    }
     return &this_response;
 }
