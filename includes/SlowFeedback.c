@@ -9,7 +9,7 @@
 *   
 *-------------------------------------------------------------*/
 #define VERSION_SLOW_FEEDBACK 2.13
-#define K_i 0.2
+#define K_i 0.01
 #define OUTER_CLIPPING 1000
 #define INNER_CLIPPING 50
 
@@ -22,18 +22,18 @@ int PID_controller()
 
     while (true)
     {
-        X_curr = get_Analog(1) - 2000;
-        Y_curr = get_Analog(2) - 2000;
+        X_curr = get_Analog(1) - 1440;
+        Y_curr = get_Analog(2) - 1440;
         curr = time(NULL);
         time_t Ts = curr - start;
         xi = K_i * (xi + ((X_curr + X_prev) / 2) * Ts);
         yi = K_i * (yi + ((Y_curr + Y_prev) / 2) * Ts);
 
-        if (xi >= 0 && xi < INNER_CLIPPING)
+       /** if (xi >= 0 && xi < INNER_CLIPPING)
                 xi = 0;
 
         else if (xi <= 0 && xi > -INNER_CLIPPING)
-                xi = 0;
+                xi = 0;**/
 
         if (xi > OUTER_CLIPPING)
             xi = OUTER_CLIPPING;

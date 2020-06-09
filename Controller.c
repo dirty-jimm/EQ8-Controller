@@ -24,14 +24,13 @@ void help(int option)
 {
     if (option == 1)
     {
-        printf("Driver version %.2f\n", VERSION_DRIVER);
-        printf("Comms version %.2f\n\n", VERSION_COMMS);
         printf("Commands:\n");
         printf("position\tContinuously prints position of mount axes.\n");
-        printf("manual\t\tAllows user to manually control position of mount.\n");
-        printf("go\t\tMoves mount to a given target (encoder) position. * specifies axis (1/2).\n");
+        printf("manual\t\tAllows user to manually control position of mount through joystick or keyboard.\n");
+        printf("go\t\tTurns axis to a given target (encoder) position. \n");
         printf("turn\t\tMoves mount a given number of degrees.\n");
         printf("scan\t\tStarts initialisation scan.\n");
+        printf("feedback\tStarts slow-feedback program.\n");
         printf("exit\t\tSevers port connection and quits program.\n\n");
         printf("\nAll other inputs are interpreted as commands and are sent to the mount.\n\n");
     }

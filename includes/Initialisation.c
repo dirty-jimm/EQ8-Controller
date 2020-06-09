@@ -118,7 +118,7 @@ int scan(unsigned long range, double field)
     }
     else
     {
-        printf("\nPrevious scan incomplete.\nContinue previous scan?");
+        printf("\nContinue previous scan?");
         char c = '\0';
     READINPUT:
         c = getchar();
@@ -188,7 +188,5 @@ int scan(unsigned long range, double field)
     go_to(2, lu_to_string(max_Point.pos_2), false);
 
     fclose(csv);
-    fclose(control);
-    remove("control.csv");
     return 1;
 }
