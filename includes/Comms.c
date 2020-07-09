@@ -25,10 +25,11 @@
 #include <unistd.h>  /* UNIX Standard Definitions      */
 #include <errno.h>   /* ERROR Number Definitions           */
 
-//#define PORT "/dev/cu.usbserial-00001014" // Port mount is connected through, Mac
-//#define PORT "/dev/cu.usbserial-000020" // Port mount is connected through, Mac (Alt)
-#define PORT "/dev/serial/by-id/usb-FTDI_USB__-__Serial-if00-port0" // Linux
-//#define PORT "/dev/serial/by-id/usb-FTDI_UT232R_FT32U5FA-if00-port0" //Linux
+
+//#define PORT "/dev/cu.usbserial-FTASVGMZ" // Port mount is connected through, Mac
+
+#define PORT "/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTASVGMZ-if00-port0" // Linux
+
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 
 bool verbose = 0; //Enables verbose terminal output for debugging

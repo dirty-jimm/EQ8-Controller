@@ -13,7 +13,7 @@
 //Laser properties
 #define W0 0.017           //Initial beam waist
 #define LAMBDA 0.000001550 // Wavelength of laser
-#define SCALE 0.1          // Scale factor
+#define SCALE 0.4          // Scale factor
 
 struct point
 {
@@ -30,7 +30,15 @@ struct point
 double get_Resolution(unsigned long range)
 {
     double Zr = (M_PI * pow(W0, 2)) / LAMBDA;
-    return SCALE * W0 * sqrt(1 + pow((range / Zr), 2));
+    double Wz = SCALE * W0 * sqrt(1 + pow((range / Zr), 2));     // Beam width
+    double resolution_a = Wz / range;                            //resolution in rads
+    int step_size = resolution_a / ((2 * M_PI) / STEPS_PER_REV); //resolution in encoder steps
+
+    if (step_size < 1)
+        step_size = 1;
+    if (verbose)
+        printf("\nINITIALIASTION_DEBUG(get_Resolution): Wz: %.10f meters\n", Wz);
+    return step_size;
 }
 
 /**Function to command mount to scan along an axis
@@ -51,14 +59,14 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, stru
             printf("Next: %06lX\n", next_Pos);
         }
 
-    NEXTPOS:
+        //NEXTPOS:
         go_to(axis, lu_to_string(next_Pos), false);
         while (get_Status(axis)) //wait while mount is moving
         {
         }
 
-        if (get_Position(axis) != next_Pos)
-            goto NEXTPOS;
+        //if (get_Position(axis) != next_Pos)
+        //  goto NEXTPOS;
 
         reading = get_Analog(1);
         reading2 = get_Analog(2);
@@ -98,15 +106,9 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, stru
 int scan(unsigned long range, double field)
 {
     time_t start = time(NULL), curr;
-
-    double resolution_m = get_Resolution(range);                          //resolution in meters
-    double resolution_a = resolution_m / range;                           //resolution in rads
-    int resolution = resolution_a / ((2 * M_PI) / STEPS_PER_REV_CHANNEL); //resolution in encoder steps
-    if (resolution < 1)
-        resolution = 1;
-
+    int step_size = get_Resolution(range);
     double field_rads = (2 * M_PI * field) / 360;
-    int max_steps = (field_rads / resolution_a);         //number of points in the longest line
+    int max_steps = (field_rads / step_size);            //number of points in the longest line
     int total_steps = max_steps * max_steps + max_steps; //total number of points to be measured
     char filename[64];
     sprintf(filename, "Data/%lu-%0.3f.csv", range, field);
@@ -136,14 +138,16 @@ int scan(unsigned long range, double field)
     fprintf(control, "\nRange: %lX, Field: %0.3f", range, field);
     FILE *csv = fopen(filename, "w+");
 
-    //if (verbose)
-    printf("\nINITIALIASTION_DEBUG(scan): Link distance: %lu meters\n", range);
-    printf("INITIALIASTION_DEBUG(scan): Link field: %f degrees\n", field);
-    printf("INITIALIASTION_DEBUG(scan): Link field: %f rads\n", field_rads);
-    printf("INITIALIASTION_DEBUG(scan): Scan Resolution: %f rads\n", resolution_a);
-    printf("INITIALIASTION_DEBUG(scan): Scan Resolution: %i encoder steps\n", resolution);
-    printf("INITIALIASTION_DEBUG(scan): Max Steps: %i scan steps\n", max_steps);
-    printf("INITIALIASTION_DEBUG(scan): Total Steps: %i scan steps\n", total_steps);
+    if (verbose)
+    {
+        printf("\nINITIALIASTION_DEBUG(scan): Distance: %lu meters\n", range);
+        printf("INITIALIASTION_DEBUG(scan): Scan field: %.3f degrees\n", field);
+        printf("INITIALIASTION_DEBUG(scan): Scan field: %.3f rads\n", field_rads);
+        printf("INITIALIASTION_DEBUG(scan): Scan Resolution: %f rads\n", (2 * M_PI * step_size) / (STEPS_PER_REV));
+        printf("INITIALIASTION_DEBUG(scan): Step size: %i encoder ticks\n", step_size);
+    }
+    if (range <= 0 || field <= 0 || step_size < 1) //Error
+        return -1;
 
     int axis = 1;      //Axis motor to turn
     int direction = 1; //The direction this line going to be scanned
@@ -168,7 +172,7 @@ int scan(unsigned long range, double field)
             direction = direction * -1; //reverse scan direction
         }
 
-        found = scanline(axis, resolution, direction, steps, csv, &max_Point, 10000); //scan the next line
+        found = scanline(axis, step_size, direction, steps, csv, &max_Point, 10000); //scan the next line
 
         completed = completed + steps;
         axis = (axis + 1) % 2; // change axis, can either be 1 or0
@@ -189,4 +193,20 @@ int scan(unsigned long range, double field)
 
     fclose(csv);
     return 1;
+}
+
+int get_Scan_Parameters()
+{
+    char range[MAX_INPUT];
+    char field[MAX_INPUT];
+    printf("\nEnter link range:\t");
+    scanf("%s", range);
+    printf("%sm", range);
+    printf("\nEnter link field:\t");
+    scanf("%s", field);
+    printf("%s\u00B0", field);
+
+    unsigned long range_lu = strtol(range, NULL, 10);
+    double field_d = strtod(field, NULL);
+    return scan(range_lu, field_d);
 }

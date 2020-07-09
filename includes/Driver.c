@@ -12,7 +12,7 @@
 *-------------------------------------------------------------*/
 
 #define VERSION_DRIVER 2.13
-#define STEPS_PER_REV_CHANNEL 0xA9EC00
+#define STEPS_PER_REV 0xA9EC00
 #define MAX_INPUT 128
 
 #include "Comms.c"
@@ -234,7 +234,7 @@ unsigned long angle_to_argument(int channel, double angle)
         return -1;
     curr_Pos_String[0] = '0'; //strips the leading '='
     unsigned long curr_Pos = strtol(curr_Pos_String, NULL, 16);
-    unsigned long target_Pos = curr_Pos + roundf(angle * (STEPS_PER_REV_CHANNEL / 360));
+    unsigned long target_Pos = curr_Pos + roundf(angle * (STEPS_PER_REV / 360));
     target_Pos = target_Pos % 0xA9EC00;
     if (verbose)
     {

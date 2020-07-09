@@ -24,15 +24,16 @@ void help(int option)
 {
     if (option == 1)
     {
-        printf("Commands:\n");
-        printf("position\tContinuously prints position of mount axes.\n");
-        printf("manual\t\tAllows user to manually control position of mount through joystick or keyboard.\n");
-        printf("go\t\tTurns axis to a given target (encoder) position. \n");
-        printf("turn\t\tMoves mount a given number of degrees.\n");
-        printf("scan\t\tStarts initialisation scan.\n");
-        printf("feedback\tStarts slow-feedback program.\n");
-        printf("exit\t\tSevers port connection and quits program.\n\n");
-        printf("\nAll other inputs are interpreted as commands and are sent to the mount.\n\n");
+        char *helpstring = "Commands:\n"
+                           "position\tContinuously prints position of mount axes.\n"
+                           "manual\t\tAllows user to manually control position of mount through joystick or keyboard.\n"
+                           "go\t\tTurns axis to a given target (encoder) position. \n"
+                           "turn\t\tMoves mount a given number of degrees.\n"
+                           "scan\t\tStarts initialisation scan.\n"
+                           "feedback\tStarts slow-feedback program.\n"
+                           "exit\t\tSevers port connection and quits program.\n\n"
+                           "\nAll other inputs are interpreted as commands and are sent to the mount.\n\n";
+        printf("%s", helpstring);
     }
 }
 
@@ -59,7 +60,8 @@ void parse_Command(char input[MAX_INPUT])
                 printf("\r1: %06lX,2: %06lX\t\t\t", X, Y);
                 fflush(stdout);
             }
-            else break;
+            else
+                break;
 
         } while (!(kbhit() && getchar() == 'c'));
         system("/bin/stty cooked");
@@ -231,16 +233,7 @@ void parse_Command(char input[MAX_INPUT])
     }
     else if (strcasecmp(input, "scan") == 0)
     {
-        char range[MAX_INPUT];
-        char field[MAX_INPUT];
-        printf("\nEnter link range (meters):\t");
-        scanf("%s", range);
-        printf("\nEnter link field (degrees):\t");
-        scanf("%s", field);
-
-        unsigned long range_lu = strtol(range, NULL, 10);
-        double field_d = strtod(field, NULL);
-        scan(range_lu, field_d);
+        get_Scan_Parameters();
     }
     else if (strcasecmp(input, "feedback") == 0)
     {
@@ -255,7 +248,7 @@ void wait_For_Input()
     char input[MAX_INPUT];
     while (true)
     {
-        printf("Command:");
+        printf("\nCommand:");
         scanf("%s", input);
         parse_Command(input);
     }
