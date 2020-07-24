@@ -1,6 +1,13 @@
 {
     "files.associations": {
         "system_calls.h": "c",
-        "eq8-driver.h": "c"
+        "eq8-driver.h": "c",
+        "array": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "initializer_list": "cpp"
     }
 }
