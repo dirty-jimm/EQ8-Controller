@@ -4,14 +4,14 @@
 * Email: james.leipold@hotmail.com
 * Created on: 11/02/2020
 * Last modifiied on: 12/05/2020
-* orignial  1006927
-*turning 10 left (10) 1006929-6928
-*turning 10 right (-10) 1006931-6930
-*turning up (-10) 10006932-6933
-*turning down (10) 1006935-6934
 
 * This library allows for low level communication with the motor 
 * controllers through a USB - RJ45 Serial connection.
+*
+* This library shouldn't need editing unless porting the system to a new computer.
+*
+* PORT is the ID of the FTDI cable found in /dev/serial 
+* This will change between cables
 *-------------------------------------------------------------*/
 #define VERSION_COMMS 2.13
 
@@ -25,14 +25,14 @@
 #include <unistd.h>  /* UNIX Standard Definitions      */
 #include <errno.h>   /* ERROR Number Definitions           */
 
-
 //#define PORT "/dev/cu.usbserial-FTASVGMZ" // Port mount is connected through, Mac
 
-#define PORT "/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTASVGMZ-if00-port0" // Linux
-
+//#define PORT "/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTASVGMZ-if00-port0" // Linux
+#define PORT "/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTASU2BK-if00-port0" // Linux
 #define LINUX_LS "ls -1a /dev/serial/by-id/"
 
 bool verbose = 0; //Enables verbose terminal output for debugging
+bool comms = 1;   //ignores comms errors (allows execution without FTDI cable)
 
 /* *
  * Structure used to return both a success flag and data
@@ -42,6 +42,11 @@ struct response
     int flag;     // Response flag, negative = error
     char data[6]; // data
 };
+
+/* *
+ * Function to setup controller, call port setup.
+ * Returns port ID on success, -1 on failure.
+ * */
 int setup_Port()
 {
     int fd = open(PORT, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -100,6 +105,7 @@ int setup_Port()
  * */
 int TX(int port, char writebuffer[])
 {
+
     if (verbose)
     {
         printf("COMMS_DEBUG(TX) Command: %s\n", writebuffer);
@@ -120,6 +126,12 @@ int TX(int port, char writebuffer[])
 struct response *RX(int port)
 {
     static struct response this_response = {-1};
+    if (!comms) //Assume good response when comms are turned off
+    {
+        this_response.flag=1;
+        strcpy(this_response.data, "COMMS OFF");
+        return &this_response;
+    }
     memset(this_response.data, 0, strlen(this_response.data)); // flush previous read
 
     int bytes_read = read(port, this_response.data, 8); /* Read the data */
@@ -128,9 +140,14 @@ struct response *RX(int port)
     if (this_response.data[0] == '=') //valid response from mount
         this_response.flag = 1;
 
-    if (this_response.data[0] == '!')
+    if (this_response.data[0] == '!') //error thrown by mount
         this_response.flag = 2;
 
+    //else
+    //{
+    //  this_response.flag = -1;
+    //printf("COMMS_DEBUG(RX): No response\n");
+    //}
     if (verbose)
     {
         printf("COMMS_DEBUG(RX): %i Bytes recieved\n", bytes_read);

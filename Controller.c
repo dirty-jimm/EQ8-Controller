@@ -3,17 +3,18 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 12/03/2020
-* Last modifiied on: 30/04/2020
+* Last modifiied on: 21/07/2020
 * 
 * This library contains high level mount controlling functionality:
 *   
 *-------------------------------------------------------------*/
-#define VERSION_CONTROLLER 2.13
+#define VERSION_CONTROLLER 2.14
 
 #include "Driver.c"
 #include "system_calls.c"
 #include "Initialisation.c"
 #include "SlowFeedback.c"
+#include "stabilisation.c"
 
 /* *
  * Function to interpret keyboard commands.
@@ -24,19 +25,40 @@ void help(int option)
 {
     if (option == 1)
     {
-        char *helpstring = "Commands:\n"
+        char *helpstring = "usage: ./Controller [-v verbose mode] [command]\n"
+                           "[command] initiates the controller and immediately calls the provided command\n\n"
+                           "Commands:\n"
                            "position\tContinuously prints position of mount axes.\n"
                            "manual\t\tAllows user to manually control position of mount through joystick or keyboard.\n"
                            "go\t\tTurns axis to a given target (encoder) position. \n"
                            "turn\t\tMoves mount a given number of degrees.\n"
                            "scan\t\tStarts initialisation scan.\n"
                            "feedback\tStarts slow-feedback program.\n"
+                           "stabilisation\tRuns stabilisation program\n"
                            "exit\t\tSevers port connection and quits program.\n\n"
                            "\nAll other inputs are interpreted as commands and are sent to the mount.\n\n";
         printf("%s", helpstring);
     }
 }
 
+void options(char c)
+{
+    if (c == 'v')
+    {
+        verbose = 1;
+        printf("\nVerbose Mode: On\n");
+        printf("Comms: Version: %.2f\n", VERSION_COMMS);
+        printf("Driver: Version: %.2f\n", VERSION_DRIVER);
+        printf("Initialisation: Version: %.2f\n", VERSION_INITIALISATION);
+        printf("SlowFeedback: Version: %.2f\n", VERSION_SLOW_FEEDBACK);
+        printf("Controller: Version: %.2f\n", VERSION_CONTROLLER);
+    }
+    if (c == 'c')
+    {
+        printf("Comms mode: off\nNo commands will be sent to the mount\n");
+        comms = 0;
+    }
+}
 void parse_Command(char input[MAX_INPUT])
 {
     char c = '\0';
@@ -220,14 +242,11 @@ void parse_Command(char input[MAX_INPUT])
 
         printf("\rEnter angle:\t");
         scanf("%s", angle);
-
-        long target = angle_to_argument(channel, atof(angle));
-        if (verbose)
-            printf("CONTROLLER_DEBUG(parse_COMMAND: Target(char): %s\n", lu_to_string(target));
-        go_to(channel, lu_to_string(target), false);
+        turn(channel, atof(angle));
     }
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
     {
+        stop_channel(3);
         shutdown_Controller(port);
         exit(1);
     }
@@ -238,6 +257,10 @@ void parse_Command(char input[MAX_INPUT])
     else if (strcasecmp(input, "feedback") == 0)
     {
         PID_controller();
+    }
+    else if (strcasecmp(input, "stabilisation") == 0)
+    {
+        stabilisation();
     }
     else
         parse_Response((send_Command(input)));
@@ -257,16 +280,20 @@ void wait_For_Input()
 int main(int argc, char **argv)
 {
     system("clear");
-    if (argc > 1 && strcasecmp(argv[1], "verbose") == 0)
+    int command = 0;
+    if (argc > 1) //if CLI arguments are provided
     {
-        verbose = 1;
-        printf("\nVerbose Mode: On\n");
-        printf("Comms: Version: %.2f\n", VERSION_COMMS);
-        printf("Driver: Version: %.2f\n", VERSION_DRIVER);
-        printf("Initialisation: Version: %.2f\n", VERSION_INITIALISATION);
-        printf("SlowFeedback: Version: %.2f\n", VERSION_SLOW_FEEDBACK);
-        printf("Controller: Version: %.2f\n", VERSION_CONTROLLER);
+        for (int i = 1; i < argc; i++) //for each argument
+            if (argv[i][0] == '-')     //is it an option ("-*")?
+                options(argv[i][1]);
+            else //its a command
+                command = i;
     }
-    port = begin_Comms();
+
+    setup();
+    if (comms)
+        port = setup_Port();
+    if (command) //if a CLI command was provided
+        parse_Command(argv[command]);
     wait_For_Input();
 }
