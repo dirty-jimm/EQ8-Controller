@@ -256,11 +256,33 @@ void parse_Command(char input[MAX_INPUT])
     }
     else if (strcasecmp(input, "feedback") == 0)
     {
-        PID_controller();
+        //PID_controller();
     }
     else if (strcasecmp(input, "stabilisation") == 0)
     {
         stabilisation();
+    }
+    else if (strcasecmp(input, "tab")==0) //meme command
+    {
+        char input2[MAX_INPUT];
+        printf("CHECK CORE TEMPERATURE?\nYES/NO\n");
+        scanf("%s", input2);
+        if (strcasecmp(input2, "YES") == 0)
+            printf("CORE TEMPERATURE NORMAL\n");
+        else
+            return;
+    VENT:
+        printf("\nVENT RADIOACTIVE GAS?\nYES/NO\n");
+
+        scanf("%s", input2);
+        if (strcasecmp(input2, "NO") == 0)
+        {
+            printf("VENTING PREVENTS EXPLOSION\n");
+            goto VENT;
+        }
+
+        else if (strcasecmp(input2, "YES") == 0)
+            printf("VENTING RADIOACTIVE GAS\n");
     }
     else
         parse_Response((send_Command(input)));
