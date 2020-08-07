@@ -1,3 +1,12 @@
+/*--------------------------------------------------------------
+* EQ8 - SlowFeedback
+* Author: 
+* Email:
+* Created on: 
+* Last modifiied on: 07/08/2020
+* Version  2.3
+*-------------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -130,9 +139,9 @@ int stabilisation()
     writeOut1(0.0);
     writeOut2(0.0);
     // QPD offsets.
-    float xOffset = 0.14502;
-    float yOffset = -0.13523;
-    float sumOffset = 0.15926;
+    float xOffset = 0;//0.14502;
+    float yOffset = 0;//-0.13523;
+    float sumOffset = 0;//0.15926;
     // Creating file for data storage and analysis.
     FILE *data;
     data = fopen("data.csv", "w");
@@ -148,7 +157,7 @@ int stabilisation()
     for (int i = 0; i < iterations; i++)
     {
 
-        if (readSum() > (0.35 - sumOffset))
+        if (readSum() > (0.0 - sumOffset))
         {
 
             e1Y = setPoint - ((readIn1() - (yOffset)) / (readSum() - sumOffset));
@@ -156,14 +165,16 @@ int stabilisation()
             e2Y = e1Y;
             e3Y = e2Y;
             controlVoltage1 += uY;
-            writeOut1(controlVoltage1);
+            //writeOut1(controlVoltage1);
+            writeOut1(0);
 
             e1X = setPoint - ((readIn2() - (xOffset)) / (readSum() - sumOffset));
             float uX = (A * e1X) + (B * e2X) + (C * e3X);
             e2X = e1X;
             e3X = e2X;
             controlVoltage2 += uX;
-            writeOut2(controlVoltage2);
+            //writeOut2(controlVoltage2);
+            writeOut2(0);
 
             if (i % iterationsPerRecord == 0)
             {
@@ -177,7 +188,7 @@ int stabilisation()
                 // printf("Print to screen time %.9f", (printTimeEnd - printTimeStart)/CLOCKS_PER_SEC);
             }
         
-            PID_controller(controlVoltage1, controlVoltage2);
+            PID_controller(controlVoltage2, controlVoltage1);
         }
         else
         {

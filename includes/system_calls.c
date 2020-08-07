@@ -1,3 +1,12 @@
+/*--------------------------------------------------------------
+* EQ8 - SlowFeedback
+* Author: Jim Leipold
+* Email: james.leipold@hotmail.com
+* Created on: 26/05/2020
+* Last modifiied on: 07/08/2020
+* Version  2.3
+*-------------------------------------------------------------*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

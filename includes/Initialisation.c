@@ -3,11 +3,11 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 28/04/2020
-* Last modifiied on: 26/05/2020
+* Last modifiied on: 07/08/2020
 *
 * This library contains scanning functionailty.
 *-------------------------------------------------------------*/
-#define VERSION_INITIALISATION 2.13
+#define VERSION_INITIALISATION 2.14
 #include <time.h>
 
 //Laser properties
@@ -112,13 +112,13 @@ int scan(unsigned long range, double field)
     int total_steps = max_steps * max_steps + max_steps; //total number of points to be measured
     char filename[64];
     sprintf(filename, "Data/%lu-%0.3f.csv", range, field);
-    FILE *control = fopen("control.csv", "r+");
-    if (control == NULL)
-    {
-        printf("Control file does not exist, generating...\n");
-        control = fopen("control.csv", "w+");
-    }
-    else
+   /* FILE *control = fopen("control.csv", "r+");
+    //if (control == NULL)
+    //{
+      //  printf("Control file does not exist, generating...\n");
+       // control = fopen("control.csv", "w+");
+   // }
+    //else
     {
         printf("\nContinue previous scan?");
         char c = '\0';
@@ -133,9 +133,9 @@ int scan(unsigned long range, double field)
         }
         else
             goto READINPUT;
-    }
-
-    fprintf(control, "\nRange: %lX, Field: %0.3f", range, field);
+    }*/
+   // fprintf(control, "\nRange: %lX, Field: %0.3f", range, field);
+    
     FILE *csv = fopen(filename, "w+");
 
     if (verbose)
@@ -184,7 +184,7 @@ int scan(unsigned long range, double field)
             break;
 
     } while (steps <= max_steps);
-    fprintf(control, "%i, %i, %i, %i, %i, %i", max_steps, total_steps, axis, direction, steps, completed);
+    //fprintf(control, "%i, %i, %i, %i, %i, %i", max_steps, total_steps, axis, direction, steps, completed);
 
     //go_to the coordinates corresponding to max intensity
     printf("Going to: %lX, %lX\n", max_Point.pos_1, max_Point.pos_2);
