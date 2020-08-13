@@ -3,7 +3,7 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 12/03/2020
-* Last modifiied on: 13/08/2020
+* Last modifiied on: 05/08/2020
 * 
 * This library contains high level mount controlling functionality:
 *   
@@ -261,7 +261,7 @@ void parse_Command(char input[MAX_INPUT])
     }
     else if (strcasecmp(input, "stabilisation") == 0)
     {
-        stabilisation(3000);
+        stabilisation();
     }
     else if (strcasecmp(input, "tab")==0) //meme command
     {

@@ -3,73 +3,69 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 26/05/2020
-* Last modifiied on: 07/08/2020
+* Last modifiied on: 13/08/2020
 * Version  2.3
+* NOTES: 1 encoder step = 0.12 arc second = 5.82e-7 rad ~= 0.6 micro rad
 *-------------------------------------------------------------*/
 
 #define VERSION_SLOW_FEEDBACK 2.14
 #define SAMPLES 10000
-int x_inner = 10;
-int y_inner = 10;
-int x_outer = 15;
-int y_outer = 15;
+float x_inner = 0.08;
+float y_inner = 0.08;
+float x_outer = 10;
+float y_outer = 10;
 float x_avg, y_avg;
 
-int actuate(int channel, int error)
+int actuate(int channel, float error)
 {
+
     if (channel != 1 && channel != 2)
         return -1;
     else if (error == 0)
         return 0;
     else
-        {   
+    {
         unsigned long curr_pos = get_Position(channel);
-        if (channel==1)       
+        if (channel==1)
         {
-            if(error>0)
-                curr_pos--;
-            else 
-                curr_pos++;
-        }       
-        
-        else
-         {
-             if(error>0)
-                curr_pos--;
-            else 
-                curr_pos++;
-         }
-
-        return go_to(channel, lu_to_string(curr_pos), false);
+            if (error>0)
+                curr_pos+=2;
+            else
+                curr_pos-=2;
         }
+        else
+        {
+            if (error>0)
+                curr_pos+=2;
+            else
+                curr_pos-=2;
+        }
+        return go_to(channel, lu_to_string(curr_pos), false);
+    }
     return 1;
 }
 
 int check_Avg(int channel)
 {
     int r=0;
-    if (channel == 2 || channel == 3)
+    if (channel == 2)
     {
-        if (abs(x_avg) < x_inner)
-            r= 0;
-        else if (abs(x_avg) < x_outer)
-          { 
-                actuate(2, x_avg);
-                r= 1;
-          }
-       else  r= 2;
+        if (fabs(x_avg) < x_inner)
+            r = 0;
+        else if (fabs(x_avg) < x_outer)
+            r = actuate(2, x_avg);
+        else
+            r = -1;
     }
 
-    if (channel == 1 || channel == 3)
+    else if (channel == 1)
     {
-        if (abs(y_avg) < y_inner)
-            r= 0;
-        else if (abs(y_avg) < y_outer)
-            {
-                actuate(1, y_avg);
-                r= 1;
-            }
-        else r= 2;
+        if (fabs(y_avg) < y_inner)
+            r = 0;
+        else if (fabs(y_avg) < y_outer)
+            r = actuate(1, y_avg);
+        else 
+            r = -1;
     }
     return r;
 }
@@ -86,19 +82,18 @@ int PID_controller(float error_X, float error_Y)
 
     x_avg = mean(Xsamples, SAMPLES);
     y_avg = mean(Ysamples, SAMPLES);
-    if(verbose)
-      {  
-        //  printf("Xcurr: %06.3f, Ycurr: %06.3f\n", error_X, error_Y);
-        printf("X: %06.3f, Y: %06.3f\n", x_avg, y_avg);
-}
-    else 
-    printf("X: %06.3f, Y: %06.3f\r", x_avg, y_avg);
-    //printf("%06.3f, %06.3f\n", x_avg, y_avg);
-    fflush(stdout);
-    if(check_Avg(3))
-       { 
-        memset(Xsamples,0, sizeof(Xsamples));
-        memset(Ysamples,0, sizeof(Ysamples));
-       }
+    if (verbose)
+        printf("X: % 6.3f, Y: % 6.3f\n", x_avg, y_avg);
+    else
+    {
+        printf("X: % 6.3f, Y: % 6.3f\r", x_avg, y_avg);
+        fflush(stdout);
+    }
+    if (check_Avg(2))
+        memset(Xsamples, 0, sizeof(Xsamples));
+
+    if (check_Avg(1))
+        memset(Ysamples, 0, sizeof(Ysamples));
+    
     return 0;
 }
