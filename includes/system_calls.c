@@ -3,36 +3,14 @@
 * Author: Jim Leipold
 * Email: james.leipold@hotmail.com
 * Created on: 26/05/2020
-* Last modifiied on: 07/08/2020
-* Version  2.3
+* Last modifiied on: 15/08/2020
+* Version  2.4
 *-------------------------------------------------------------*/
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "redpitaya/rp.h"
-
-int get_Analog(int channel, int samples)
-{
-    FILE *fp = popen("acquire 1", "r");
-    char response[32];
-    if (fp == NULL)
-    {
-        printf("Failed to run command\n");
-        exit(1);
-    }
-    while (fgets(response, sizeof(response), fp) != NULL)
-    {
-        //printf("Response:%s\n", response);
-    }
-
-int value = atoi(strtok(response, " "));
-if(channel == 2)
-    value = atoi(strtok(NULL, " "));
-
-pclose(fp);
-    return value;
-}
 
 float mean(float list[], int n)
 {
@@ -45,7 +23,7 @@ float mean(float list[], int n)
     return sum / n;
 }
 
-/*float get_Analog(int channel, int samples)
+float get_Fast_Analog(int channel, int samples)
 {
     uint32_t buff_size = samples;
     float *buff = (float *)malloc(buff_size * sizeof(float));
@@ -58,7 +36,66 @@ float mean(float list[], int n)
     float avg = mean(buff, samples);
     free(buff);
     return avg;
-}*/
+}
+
+float get_Pin_Voltage(int pin)
+{
+    float value1;
+    // Measure slow analogue input voltage.
+    rp_AIpinGetValue(pin, &value1);
+    // printf("%f\n", buff[1]);
+    return value1;
+}
+
+int writeOut1(float OFS)
+{
+    /* Generating offset */
+    rp_GenOffset(RP_CH_1, OFS);
+    /* Enable channel */
+    rp_GenOutEnable(RP_CH_1);
+    return 0;
+}
+
+int writeOut2(float OFS)
+{
+    /* Generating offset */
+    rp_GenOffset(RP_CH_2, OFS);
+    /* Enable channel */
+    rp_GenOutEnable(RP_CH_2);
+    return 0;
+}
+
+float std(float array[], int n)
+{
+    // Calculate the standard deviation of a list of n numbers.
+    float av = mean(array, 30000);
+    float diff = 0.0;
+    for (int loop = 0; loop < n; loop++)
+    {
+        diff += (av - array[loop]) * (av - array[loop]);
+    }
+    return diff / 29000;
+}
+
+float readSum()
+{
+    float value1;
+    // Measure slow analogue input voltage.
+    rp_AIpinGetValue(0, &value1);
+    // printf("%f\n", buff[1]);
+    return (value1) * (20 / 7);
+}
+
+float voltageLimiter(float *uY, float limit)
+{
+    if (*uY > 0.0 && *uY > limit)
+        *uY = limit;
+
+    if (*uY < 0.0 && *uY < (-1.0 * limit))
+        *uY = (-1.0 * limit);
+
+    return *uY;
+}
 
 double map(int value, int x, int y, int X, int Y)
 {

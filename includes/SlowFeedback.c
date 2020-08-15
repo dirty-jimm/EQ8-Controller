@@ -39,23 +39,14 @@ int actuate(int channel, float error)
     else
     {
         unsigned long curr_pos = get_Position(channel);
-        if (channel == 1)
-        {
+     
             if (error > 0)
                 curr_pos += steps;
             else
                 curr_pos -= steps;
-        }
-        else
-        {
-            if (error > 0)
-                curr_pos += steps;
-            else
-                curr_pos -= steps;
-        }
+
         return go_to(channel, lu_to_string(curr_pos), false);
     }
-    return 1;
 }
 
 int check_Avg(int channel)
