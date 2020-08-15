@@ -11,6 +11,7 @@
 #define VERSION_DRIVER 2.14
 #define STEPS_PER_REV 0xA9EC00
 #define MAX_INPUT 128
+#define MAX_RANGE 1000
 
 #include "Comms.c"
 #include <math.h>
@@ -169,13 +170,14 @@ int parse_Response(struct response *response)
  * */
 struct response *send_Command(char command[])
 {
-    int retries = 0;
+    int retries = 9;
     struct response *resp;
     char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
     strcpy(writebuffer, ":");
     strcat(writebuffer, command);
     strcat(writebuffer, "\r");
-
+    //if (!wait_for_response)
+    //goto EXIT
 SEND:
     TX(port, writebuffer);
     usleep(30000); // this gives the mount time to respond
@@ -188,6 +190,7 @@ SEND:
         retries++;
         goto SEND; // retry command
     }
+//EXIT:
     return resp;
 }
 
@@ -261,8 +264,8 @@ char *lu_to_string(unsigned long input)
  * Function to move mount to target position.
  * Channel specifies which axis
  * Target is the target encoder position as a character array
- * isFormatted specifies whether target is formatted for readability (0xabcdef),
- * or in the mounts format (0xefcdab), allowing for either to be used.
+ * isFormatted specifies whether target is formatted for readability ( 0 for 0xabcdef),
+ * or in the mounts format (1 for 0xefcdab), allowing for either to be used.
  * Returns 1 on success, -1 on failure, including any errors thrown by mount.
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)

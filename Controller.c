@@ -16,6 +16,8 @@
 #include "Initialisation.c"
 #include "SlowFeedback.c"
 #include "stabilisation.c"
+int initial_X_position = -1;
+int initial_Y_position = -1;
 
 /* *
  * Function to interpret keyboard commands.
@@ -243,7 +245,13 @@ void parse_Command(char input[MAX_INPUT])
 
         printf("\rEnter angle:\t");
         scanf("%s", angle);
-        turn(channel, atof(angle));
+        float angle_float = atof(angle);
+        if (angle_float > 10)
+        {
+            printf("\nAngle too big\n");
+            return;
+        }
+        turn(channel, angle_float);
     }
     else if (strcasecmp(input, "exit") == 0 || strcasecmp(input, "quit") == 0)
     {
@@ -257,13 +265,13 @@ void parse_Command(char input[MAX_INPUT])
     }
     else if (strcasecmp(input, "feedback") == 0)
     {
-       // PID_controller();
+        // PID_controller();
     }
     else if (strcasecmp(input, "stabilisation") == 0)
     {
-        stabilisation(3000);
+        stabilisation(30000);
     }
-    else if (strcasecmp(input, "tab")==0) //meme command
+    else if (strcasecmp(input, "tab") == 0) //meme command
     {
         char input2[MAX_INPUT];
         printf("CHECK CORE TEMPERATURE?\nYES/NO\n");
@@ -316,6 +324,14 @@ int main(int argc, char **argv)
     setup();
     if (comms)
         port = setup_Port();
+    initial_X_position = get_Position(2);
+    initial_Y_position = get_Position(1);
+
+    if (initial_Y_position == -1 || initial_X_position == -1)
+        {
+            printf("Error obtaining initial position from mount.\n Check connection and power.\n Exiting...\n");
+        }
+    
     if (command) //if a CLI command was provided
         parse_Command(argv[command]);
     wait_For_Input();

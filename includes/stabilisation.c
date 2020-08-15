@@ -3,7 +3,7 @@
 * Author: Lewis Howard
 * Email:
 * Created on:
-* Last modifiied on: 13/08/2020 by Jim Leipold
+* Last modifiied on: 14/08/2020 by Jim Leipold
 * 
 *-------------------------------------------------------------*/
 
@@ -40,6 +40,15 @@ float readLightVoltage()
     float value1;
     // Measure slow analogue input voltage.
     rp_AIpinGetValue(0, &value1);
+    // printf("%f\n", buff[1]);
+    return value1;
+}
+
+float readLightVoltage_pin(int pin)
+{
+    float value1;
+    // Measure slow analogue input voltage.
+    rp_AIpinGetValue(pin, &value1);
     // printf("%f\n", buff[1]);
     return value1;
 }
@@ -88,12 +97,12 @@ float voltageLimiter(float *uY, float limit)
 {
     if (*uY > 0.0 && *uY > limit)
     {
-       *uY = limit;
+        *uY = limit;
     }
 
     if (*uY < 0.0 && *uY < (-1.0 * limit))
-    {	
-       *uY = (-1.0 * limit);
+    {
+        *uY = (-1.0 * limit);
     }
 
     return *uY;
@@ -148,16 +157,20 @@ int stabilisation(int minutes)
     float A = 0.008; //0.008
     float B = 0.008; //0.008
     float C = 0.008; //0.0079
-   // Set voltages to (0,0).
+                     // Set voltages to (0,0).
     writeOut1(0.0);
     writeOut2(0.0);
     // QPD offsets. downstairs lab. lvl 5 lab
     float xOffset = -0.176; //0.32;//0.14502;
-    float yOffset = 0.461; //-0.26;//-0.13523;
+    float yOffset = 0.461;  //-0.26;//-0.13523;
     float sumOffset = 0.45; //0.33;//0.15926;
     // Creating file for data storage and analysis.
     FILE *data;
     data = fopen("data.csv", "w+");
+
+    FILE *Jimsdata;
+    Jimsdata = fopen("Jimsdata.csv", "w+");
+    fprintf(Jimsdata, "Time, Power, Move status\n");
     // Starting the clock for timing.
     clock_t start = clock();
     float diff, sec = 0.0;
@@ -168,11 +181,12 @@ int stabilisation(int minutes)
 
     // Run a sine curve two minutes on both mirrors.
     //for (int i = 0; i < iterations; i++)
-       	
+
     // Starting the stabilisation loop.
     printf("\n Starting stabilisation ... \n");
     for (int i = 0; i < iterations; i++)
     {
+        int moveStatus = 0;
 
         if (readSum() > (7.0 - sumOffset))
         {
@@ -182,35 +196,35 @@ int stabilisation(int minutes)
             e2Y = e1Y;
             e3Y = e2Y;
 
-	    //voltageLimiter(&uY, 0.2);
+            //voltageLimiter(&uY, 0.2);
 
-	    if (abs(uY) > 0.2)
-	    {
-	    	uY = uY / 4.0;
-	    }
-	    else
-	    {
-            controlVoltage1 += uY;
-	    }
+            if (abs(uY) > 0.2)
+            {
+                uY = uY / 4.0;
+            }
+            else
+            {
+                controlVoltage1 += uY;
+            }
 
             writeOut1(controlVoltage1);
 
             //e1X = (setPoint - (xOffset / sumOffset)) - ((readIn2() - (xOffset)) / (readSum() - sumOffset));
-            e1X = (setPoint - (xOffset / sumOffset)) - ((readIn2() / readSum())- (xOffset / sumOffset));
-	    float uX = (A * e1X) + (B * e2X) + (C * e3X);
+            e1X = (setPoint - (xOffset / sumOffset)) - ((readIn2() / readSum()) - (xOffset / sumOffset));
+            float uX = (A * e1X) + (B * e2X) + (C * e3X);
             e2X = e1X;
             e3X = e2X;
- 	    
-	    if (abs(uX) > 0.2)
-	    {
-	        uX = uX / 4.0;
-	    }
-	    else
-	    {
-            controlVoltage2 += uX;
+
+            if (abs(uX) > 0.2)
+            {
+                uX = uX / 4.0;
+            }
+            else
+            {
+                controlVoltage2 += uX;
             }
 
-	    writeOut2(controlVoltage2);
+            writeOut2(controlVoltage2);
 
             if (i % iterationsPerRecord == 0)
             {
@@ -223,9 +237,9 @@ int stabilisation(int minutes)
                 // float printTimeEnd = clock();
                 // printf("Print to screen time %.9f", (printTimeEnd - printTimeStart)/CLOCKS_PER_SEC);
             }
-        
+
             //printf("uX: %.6f, uY: %.6f, ControlX: %.4f, ControlY: %.4f, readSum: %.4f \n", uX, uY, controlVoltage2, controlVoltage1, readSum());
-           PID_controller(controlVoltage2, controlVoltage1);
+            moveStatus = PID_controller(controlVoltage2, controlVoltage1);
         }
         else
         {
@@ -248,11 +262,12 @@ int stabilisation(int minutes)
 
             //	    printf("Drop out number, %i. Power: %.4f \n", dropOut, readSum());
         }
+        fprintf(Jimsdata, "%f, %f, %i\n", sec, readLightVoltage_pin(1), moveStatus);
     }
 
     diff = clock() - start;
     sec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("\n Operational time of %.5f seconds for %i iterations. Frequency of %.5f Hz \n", sec/1000, iterations, iterations/(sec / 1000));
+    printf("\n Operational time of %.5f seconds for %i iterations. Frequency of %.5f Hz \n", sec / 1000, iterations, iterations / (sec / 1000));
     printf("\n %i dropouts recorded.\n", dropOut);
     // Close data.csv
     fclose(data);
@@ -293,7 +308,7 @@ int stabilisation(int minutes)
         //        printf("fibreVoltage is %.8f\n", records[loop].fibreVoltage);
     }
 
-    float avFibreVoltage = sumFibreVoltage / (iterations / iterationsPerRecord);   
+    float avFibreVoltage = sumFibreVoltage / (iterations / iterationsPerRecord);
     float differenceFibreVoltage = 0.0;
 
     for (int loop = 0; loop < (iterations / iterationsPerRecord); loop++)
@@ -302,9 +317,9 @@ int stabilisation(int minutes)
     }
 
     float stdFibreVoltage = differenceFibreVoltage / (iterations / iterationsPerRecord);
-    
+
     printf("Mean fibre voltage was: %.4f.\n", avFibreVoltage);
     printf("Standard deviation of fibre voltage was: %.4f.\n", stdFibreVoltage);
-    printf("\a\a");   
-return 1;
+    printf("\a\a");
+    return 1;
 }
