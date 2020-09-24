@@ -334,5 +334,6 @@ int main(int argc, char **argv)
     
     if (command) //if a CLI command was provided
         parse_Command(argv[command]);
+        
     wait_For_Input();
 }

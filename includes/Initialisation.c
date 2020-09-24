@@ -60,8 +60,8 @@ int scanline(int axis, int resolution, int direction, int steps, FILE *csv, stru
         //if (get_Position(axis) != next_Pos)
         //  goto NEXTPOS;
 
-        reading = get_Analog(1, 10);
-        reading2 = get_Analog(2, 10);
+        reading = get_Fast_Analog(1, 10);
+        reading2 = get_Fast_Analog(2, 10);
         unsigned long X = get_Position(1);
         unsigned long Y = get_Position(2);
 
@@ -133,8 +133,8 @@ int scan(unsigned long range, double field)
     int found = 0;     //Has a reading above a minimum threshold been found?
     int completed = 0;
 
-    float reading = get_Analog(1, 10); //read the intensity of returned power.
-    float reading2 = get_Analog(2, 10);
+    float reading = get_Fast_Analog(1, 10); //read the intensity of returned power.
+    float reading2 = get_Fast_Analog(2, 10);
     unsigned long X = get_Position(1);
     unsigned long Y = get_Position(2);
 

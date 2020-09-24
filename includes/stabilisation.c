@@ -116,7 +116,7 @@ int stabilisation(int minutes)
                 sec = diff / CLOCKS_PER_SEC;
 
                 // float  printTimeStart = clock();
-                fprintf(data, "%.5f, %.5f\n", sec, readLightVoltage(0));
+                fprintf(data, "%.5f, %.5f\n", sec, get_Pin_Voltage(0));
                 // float printTimeEnd = clock();
                 // printf("Print to screen time %.9f", (printTimeEnd - printTimeStart)/CLOCKS_PER_SEC);
             }
@@ -134,7 +134,7 @@ int stabilisation(int minutes)
             {
                 diff = clock() - start;
                 sec = diff / CLOCKS_PER_SEC;
-                fprintf(data, "%.5f, %.5f\n", sec, readLightVoltage(0));
+                fprintf(data, "%.5f, %.5f\n", sec, get_Pin_Voltage(0));
             }
 
             //	    printf("Drop out number, %i. Power: %.4f \n", dropOut, readSum());
