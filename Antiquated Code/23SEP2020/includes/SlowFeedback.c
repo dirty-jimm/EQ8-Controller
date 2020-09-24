@@ -27,37 +27,25 @@ float x_inner = 0.08;
 float y_inner = 0.08;
 float x_outer = 10;
 float y_outer = 10;
-int steps = 2;
+int steps = 10;
 
 int actuate(int channel, float error)
 {
-    int dir = 0;
-    if (channel != 1 && channel != 2)
-        return 0;
-    if (error == 0)
-        return 0;
-    if (channel == 1)
-        dir = 1;
-    if (channel == 2)
-        dir = -1;
 
+    if (channel != 1 && channel != 2)
+        return -1;
+    else if (error == 0)
+        return 0;
+    else
     {
         unsigned long curr_pos = get_Position(channel);
+     
+            if (error > 0)
+                curr_pos += steps;
+            else
+                curr_pos -= steps;
 
-        if (error > 0)
-        {
-            curr_pos += steps;
-            dir = dir * 1;
-        }
-
-        else
-        {
-            curr_pos -= steps;
-            dir = dir * 2;
-        }
-
-        go_to(channel, lu_to_string(curr_pos), false);
-        return dir;
+        return go_to(channel, lu_to_string(curr_pos), false);
     }
 }
 
@@ -70,6 +58,8 @@ int check_Avg(int channel)
             r = 0;
         else if (fabs(x_avg) < x_outer)
             r = actuate(2, x_avg);
+        else
+            r = -1;
     }
 
     else if (channel == 1)
@@ -78,6 +68,8 @@ int check_Avg(int channel)
             r = 0;
         else if (fabs(y_avg) < y_outer)
             r = actuate(1, y_avg);
+        else
+            r = -1;
     }
     return r;
 }
@@ -108,17 +100,16 @@ int PID_controller(float error_X, float error_Y)
         printf("X: % 6.3f, Y: % 6.3f\r", x_avg, y_avg);
         fflush(stdout);
     }
-    status = check_Avg(2);
-    if (status != 0)
+    if (check_Avg(2))
     {
         memset(Xsamples, 0, sizeof(Xsamples));
-        return status;
+        status = 1;
     }
-    status = check_Avg(1);
-    if (status != 0)
+
+    if (check_Avg(1))
     {
         memset(Ysamples, 0, sizeof(Ysamples));
-        return status;
+        status = 1;
     }
-    return 0;
+    return status;;
 }

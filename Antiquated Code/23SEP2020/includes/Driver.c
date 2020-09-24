@@ -11,16 +11,10 @@
 #define VERSION_DRIVER 2.14
 #define STEPS_PER_REV 0xA9EC00
 #define MAX_INPUT 128
+#define MAX_RANGE 1000
 
 #include "Comms.c"
 #include <math.h>
-
-long initial_X_position = -1;
-long initial_Y_position = -1;
-long max_X_positon;
-long min_X_positon;
-long max_Y_positon;
-long min_Y_positon;
 
 int port;
 /* *
@@ -196,7 +190,7 @@ SEND:
         retries++;
         goto SEND; // retry command
     }
-    //EXIT:
+//EXIT:
     return resp;
 }
 
@@ -279,27 +273,10 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
     stop_channel(channel);
-    long target_long = strtol(target, NULL, 16);
-    //printf("TARGET: %6lX\n", target_long);
     if (channel == 1)
-    {
         command[1] = '1';
-        if (target_long > max_Y_positon || target_long < min_Y_positon)
-
-        {
-            printf("Target exceeds boundaries");
-            return -1;
-        }
-    }
     if (channel == 2)
-    {
         command[1] = '2';
-        if (target_long > max_X_positon || target_long < min_X_positon)
-        {
-            printf("Target exceeds boundaries");
-            return -1;
-        }
-    }
 
     command[2] = '\0'; //strcat needs null terminator
     strcat(command, target);

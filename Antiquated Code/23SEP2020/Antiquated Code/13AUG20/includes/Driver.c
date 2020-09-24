@@ -15,13 +15,6 @@
 #include "Comms.c"
 #include <math.h>
 
-long initial_X_position = -1;
-long initial_Y_position = -1;
-long max_X_positon;
-long min_X_positon;
-long max_Y_positon;
-long min_Y_positon;
-
 int port;
 /* *
 * Determines if a key has been pressed, non blocking
@@ -176,14 +169,13 @@ int parse_Response(struct response *response)
  * */
 struct response *send_Command(char command[])
 {
-    int retries = 9;
+    int retries = 0;
     struct response *resp;
     char writebuffer[strlen(command) + 2]; // Create buffer with length of the command +2 for the leading ":" and trailing RC
     strcpy(writebuffer, ":");
     strcat(writebuffer, command);
     strcat(writebuffer, "\r");
-    //if (!wait_for_response)
-    //goto EXIT
+
 SEND:
     TX(port, writebuffer);
     usleep(30000); // this gives the mount time to respond
@@ -196,7 +188,6 @@ SEND:
         retries++;
         goto SEND; // retry command
     }
-    //EXIT:
     return resp;
 }
 
@@ -270,8 +261,8 @@ char *lu_to_string(unsigned long input)
  * Function to move mount to target position.
  * Channel specifies which axis
  * Target is the target encoder position as a character array
- * isFormatted specifies whether target is formatted for readability ( 0 for 0xabcdef),
- * or in the mounts format (1 for 0xefcdab), allowing for either to be used.
+ * isFormatted specifies whether target is formatted for readability (0xabcdef),
+ * or in the mounts format (0xefcdab), allowing for either to be used.
  * Returns 1 on success, -1 on failure, including any errors thrown by mount.
  **/
 int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
@@ -279,27 +270,10 @@ int go_to(int channel, char target[MAX_INPUT], bool isFormatted)
     char command[10]; //Less than 10 causes problems
     command[0] = 'S';
     stop_channel(channel);
-    long target_long = strtol(target, NULL, 16);
-    //printf("TARGET: %6lX\n", target_long);
     if (channel == 1)
-    {
         command[1] = '1';
-        if (target_long > max_Y_positon || target_long < min_Y_positon)
-
-        {
-            printf("Target exceeds boundaries");
-            return -1;
-        }
-    }
     if (channel == 2)
-    {
         command[1] = '2';
-        if (target_long > max_X_positon || target_long < min_X_positon)
-        {
-            printf("Target exceeds boundaries");
-            return -1;
-        }
-    }
 
     command[2] = '\0'; //strcat needs null terminator
     strcat(command, target);

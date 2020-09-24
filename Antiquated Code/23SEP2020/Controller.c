@@ -10,14 +10,14 @@
 *-------------------------------------------------------------*/
 #define VERSION_CONTROLLER 2.14
 #define STEPS_PER_REV_CHANNEL 11136000
-#define MAX_RANGE 2.5 //Maximum number of degrees controller will allow motion in each direction.
 
-#include <time.h>
 #include "Driver.c"
 #include "system_calls.c"
 #include "Initialisation.c"
 #include "SlowFeedback.c"
 #include "stabilisation.c"
+int initial_X_position = -1;
+int initial_Y_position = -1;
 
 /* *
  * Function to interpret keyboard commands.
@@ -265,22 +265,15 @@ void parse_Command(char input[MAX_INPUT])
     }
     else if (strcasecmp(input, "feedback") == 0)
     {
-        FILE *feedbackcsv = fopen("feedback.csv", "w+");
-        fprintf(feedbackcsv, "Started: %ld\n", time(NULL));
-        while (1)
-        {
-            int moveStatus = PID_controller(get_Fast_Analog(2, 10), get_Fast_Analog(1, 10));
-            if (moveStatus != 0)
-                {
-                printf("TURN");
-                fprintf(feedbackcsv, "%ld, %i\n", time(NULL), moveStatus);
-                fflush(feedbackcsv);
-                }
-        }
+     while (1)
+		{
+    			PID_controller(get_Fast_Analog(2, 10), get_Fast_Analog(1, 10));
+		} 
+    
     }
     else if (strcasecmp(input, "stabilisation") == 0)
     {
-        //stabilisation();
+        stabilisation();
     }
     else if (strcasecmp(input, "tab") == 0) //meme command
     {
@@ -335,32 +328,16 @@ int main(int argc, char **argv)
     setup();
     if (comms)
         port = setup_Port();
-
     initial_X_position = get_Position(2);
     initial_Y_position = get_Position(1);
-    long range_steps = (STEPS_PER_REV_CHANNEL / 360) * MAX_RANGE;
-    max_X_positon = initial_X_position + range_steps;
-    min_X_positon = initial_X_position - range_steps;
-    max_Y_positon = initial_Y_position + range_steps;
-    min_Y_positon = initial_Y_position - range_steps;
-
-    if (verbose)
-    {
-        printf("Limits: %.2f degrees\n", MAX_RANGE);
-        printf("X max: %06lX\n", max_X_positon);
-        printf("X min: %06lX\n", min_X_positon);
-        printf("Y max: %06lX\n", max_Y_positon);
-        printf("X min: %06lX\n", min_Y_positon);
-    }
 
     if (initial_Y_position == -1 || initial_X_position == -1)
-    {
-        printf("Error obtaining initial position from mount.\n Check connection and power.\n Exiting...\n");
-        exit(1);
-    }
-
+        {
+            printf("Error obtaining initial position from mount.\n Check connection and power.\n Exiting...\n");
+        }
+    
     if (command) //if a CLI command was provided
         parse_Command(argv[command]);
-
+        
     wait_For_Input();
 }

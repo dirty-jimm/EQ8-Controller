@@ -8,7 +8,7 @@
 * This library contains scanning functionailty.
 *-------------------------------------------------------------*/
 #define VERSION_INITIALISATION 2.14
-
+#include <time.h>
 
 //Laser properties
 #define W0 0.017           //Initial beam waist
