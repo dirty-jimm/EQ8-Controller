@@ -21,10 +21,19 @@ float y_outer = 10;
 int steps = 2;
 */
 
-//70m moving mode
+/*//70m moving mode
 #define SAMPLES 600
 float x_inner = 0.08;
 float y_inner = 0.08;
+float x_outer = 10;
+float y_outer = 10;
+int steps = 2;
+*/
+
+//2km Link
+#define SAMPLES 1000
+float x_inner = 0.25;
+float y_inner = 0.25;
 float x_outer = 10;
 float y_outer = 10;
 int steps = 2;
