@@ -10,7 +10,7 @@
 *-------------------------------------------------------------*/
 #define VERSION_CONTROLLER 2.14
 #define STEPS_PER_REV_CHANNEL 11136000
-#define MAX_RANGE 2.5 //Maximum number of degrees controller will allow motion in each direction.
+#define MAX_RANGE 10.0 //Maximum number of degrees controller will allow motion in each direction.
 
 #include <time.h>
 #include "Driver.c"
@@ -278,9 +278,11 @@ void parse_Command(char input[MAX_INPUT])
                 }
         }
     }
-    else if (strcasecmp(input, "stabilisation") == 0)
+    else if (strcasecmp(input, "home") == 0)
     {
-        //stabilisation();
+       
+        go_to(1, "800000", false);
+        go_to(2, "800000", false);
     }
     else if (strcasecmp(input, "tab") == 0) //meme command
     {

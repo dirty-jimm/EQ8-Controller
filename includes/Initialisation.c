@@ -37,20 +37,17 @@ double get_Resolution(unsigned long range)
  **/
 int scanline2(unsigned long next_X_pos, FILE *csv, int threshold)
 {
-    if (verbose)
-    {
-        printf("Next: %06lX\n", next_X_pos);
-    }
 
-    go_to(1, lu_to_string(next_X_pos), false);
+    go_to(2, lu_to_string(next_X_pos), false);
     while (get_Status(2)) //wait while mount is moving
     {
-        float reading = get_Fast_Analog(1, 10);
+        float reading = get_Fast_Analog(1, 5);
+        printf("Power: %f\n", reading);
         if (reading > threshold)
         {
             unsigned long X = get_Position(1);
             unsigned long Y = get_Position(2);
-            printf("%06lX, %06lX,  %f\n", X, Y, reading);
+            printf("%06lX, %06lX,  %f\a\n", X, Y, reading);
         }
     }
     return 0;
@@ -77,16 +74,17 @@ int scan(unsigned long range, double field)
         resolution = 2;
 
     double field_rads = (2 * M_PI * field) / 360;
-    int max_steps = (field_rads / resolution_a); //number of points in the longest line
+    int max_steps = (field/360)*STEPS_PER_REV_CHANNEL;
+    int lines = (field_rads / resolution_a); //number of points in the longest line;
 
     // Upper and lower limit of x, mount will slew between these two points, stepping in y axis each time.
-    unsigned long start_X_pos = get_Position(2);
-    unsigned long start_Y_pos = get_Position(1);
-    unsigned long x_upper = start_X_pos + (max_steps / 2);
-    unsigned long x_lower = start_X_pos - (max_steps / 2);
-    unsigned long y_upper = start_Y_pos + (max_steps / 2);
+    const unsigned long start_X = get_Position(2);
+    const unsigned long start_Y = get_Position(1);
+    unsigned long x_upper = start_X + (max_steps / 2);
+    unsigned long x_lower = start_X - (max_steps / 2);
+    unsigned long y_upper = start_Y + (max_steps / 2);
     unsigned long next_X_pos = x_upper; // start point
-    unsigned long next_Y_pos = start_Y_pos;
+    unsigned long next_Y_pos = y_upper;
 
     if (verbose)
     {
@@ -96,35 +94,42 @@ int scan(unsigned long range, double field)
         printf("INITIALIASTION_DEBUG(scan): Scan Resolution: %f rads\n", resolution_a);
         printf("INITIALIASTION_DEBUG(scan): Scan Resolution: %i encoder steps\n", resolution);
         printf("INITIALIASTION_DEBUG(scan): Max Steps: %i scan steps\n", max_steps);
+
+        printf("INITIALIASTION_DEBUG(scan): start x: %lX\n", start_X);
+        printf("INITIALIASTION_DEBUG(scan): start y: %lX\n", start_Y);
+        printf("INITIALIASTION_DEBUG(scan): x_upper: %lX\n", x_upper);
+        printf("INITIALIASTION_DEBUG(scan): x_lower: %lX\n", x_lower);
     }
 
     if (range <= 0 || field <= 0 || resolution < 1) //Error
         return -1;
 
     //Move to start position
-    go_to(1, lu_to_string(x_upper), false);
-    go_to(1, lu_to_string(y_upper), false);
+    go_to(1, lu_to_string(next_Y_pos), false);
+    go_to(2, lu_to_string(next_X_pos), false);
+    
 
     int completed = 0; // number of lines that have been scanned
     do
     {
+
         scanline2(next_X_pos, csv, 3); //scan the next line
         completed++;
-
-        next_Y_pos = next_Y_pos - resolution;
-        go_to(1, lu_to_string(next_Y_pos), false);
-
-        if (completed % 2 == 0)
+       
+         if (completed % 2 == 0)
             next_X_pos = x_upper;
         else
             next_X_pos = x_lower;
+        next_Y_pos = next_Y_pos - resolution;
 
-        //Print out completion status.
+        printf("Next: %06lX\n", next_Y_pos);
+        go_to(1, lu_to_string(next_Y_pos), false);
+        
         curr = time(NULL);
-        double percentage = ((double)completed * 100) / (double)max_steps;
+        double percentage = ((double)completed * 100) / (double)lines;
         printf("Progress: %.1f%%, Time remaining: %.0f minutes\n", percentage, (((curr - start) / (percentage / 100)) - (curr - start)) / 60);
 
-    } while (completed < max_steps);
+    } while (completed < lines);
 
     fclose(csv);
     return 1;

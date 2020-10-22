@@ -15,8 +15,8 @@
 #include "Comms.c"
 #include <math.h>
 
-long initial_X_position = -1;
-long initial_Y_position = -1;
+unsigned long initial_X_position = -1;
+unsigned long initial_Y_position = -1;
 long max_X_positon;
 long min_X_positon;
 long max_Y_positon;
